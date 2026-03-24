@@ -1,18 +1,9 @@
 export const dynamic = "force-dynamic";
 
 import HomeClientWithPuzzle from "@/components/HomeClientWithPuzzle";
-import { getRandomPuzzle } from "@/lib/getRandomPuzzle";
+import { generateCrossword } from "@/lib/generateCrossword";
 
-export default async function HomePage() {
-  const puzzle = await getRandomPuzzle();
-
-  if (!puzzle) {
-    return (
-      <main className="min-h-screen bg-white p-8 text-black">
-        <h1 className="text-2xl font-bold">No puzzles available</h1>
-      </main>
-    );
-  }
-
+export default function HomePage() {
+  const puzzle = generateCrossword();
   return <HomeClientWithPuzzle puzzle={puzzle} />;
 }

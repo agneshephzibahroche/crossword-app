@@ -24,7 +24,8 @@ export default function CrosswordGrid({ puzzle, theme }: Props) {
   const [selectedRow, setSelectedRow] = useState(0);
   const [selectedCol, setSelectedCol] = useState(0);
   const [direction, setDirection] = useState<Direction>("across");
-  const [checkedCells, setCheckedCells] = useState<Set<string>>(new Set());
+  const [wrongCells, setWrongCells] = useState<Set<string>>(new Set());
+  const [correctCells, setCorrectCells] = useState<Set<string>>(new Set());
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [showWinModal, setShowWinModal] = useState(false);
   const [stats, setStats] = useState<CrosswordStats>({
@@ -32,25 +33,17 @@ export default function CrosswordGrid({ puzzle, theme }: Props) {
     bestTimeSeconds: null,
   });
 
-  const storageKey = `crossword-progress-${puzzle.date}`;
+  const storageKey = `crossword-progress-${puzzle.id}`;
 
   const emptyGrid = useMemo(
-    () => puzzle.grid.map((row) => row.map((cell) => (cell === "#" ? "#" : ""))),
+    () =>
+      puzzle.grid.map((row) =>
+        row.map((cell) => (cell === "#" ? "#" : ""))
+      ),
     [puzzle.grid]
   );
 
   const [userGrid, setUserGrid] = useState<string[][]>(emptyGrid);
-
-  useEffect(() => {
-    const saved = localStorage.getItem(storageKey);
-    if (saved) {
-      try {
-        setUserGrid(JSON.parse(saved));
-      } catch {
-        setUserGrid(emptyGrid);
-      }
-    }
-  }, [storageKey, emptyGrid]);
 
   useEffect(() => {
     const raw = localStorage.getItem(STATS_KEY);
@@ -60,6 +53,40 @@ export default function CrosswordGrid({ puzzle, theme }: Props) {
       } catch {}
     }
   }, []);
+
+  useEffect(() => {
+    const saved = localStorage.getItem(storageKey);
+
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+
+        if (
+          Array.isArray(parsed) &&
+          parsed.length === puzzle.rows &&
+          parsed.every(
+            (row: unknown) => Array.isArray(row) && row.length === puzzle.cols
+          )
+        ) {
+          setUserGrid(parsed as string[][]);
+        } else {
+          setUserGrid(emptyGrid);
+        }
+      } catch {
+        setUserGrid(emptyGrid);
+      }
+    } else {
+      setUserGrid(emptyGrid);
+    }
+
+    setWrongCells(new Set());
+    setCorrectCells(new Set());
+    setElapsedSeconds(0);
+    setShowWinModal(false);
+    setSelectedRow(0);
+    setSelectedCol(0);
+    setDirection("across");
+  }, [storageKey, emptyGrid, puzzle.rows, puzzle.cols]);
 
   useEffect(() => {
     localStorage.setItem(storageKey, JSON.stringify(userGrid));
@@ -93,7 +120,11 @@ export default function CrosswordGrid({ puzzle, theme }: Props) {
     }
   }
 
-  function handleSelectClue(row: number, col: number, nextDirection: Direction) {
+  function handleSelectClue(
+    row: number,
+    col: number,
+    nextDirection: Direction
+  ) {
     setSelectedRow(row);
     setSelectedCol(col);
     setDirection(nextDirection);
@@ -101,7 +132,15 @@ export default function CrosswordGrid({ puzzle, theme }: Props) {
 
   function clearCheckedCell(row: number, col: number) {
     const key = `${row}-${col}`;
-    setCheckedCells((prev) => {
+
+    setWrongCells((prev) => {
+      if (!prev.has(key)) return prev;
+      const next = new Set(prev);
+      next.delete(key);
+      return next;
+    });
+
+    setCorrectCells((prev) => {
       if (!prev.has(key)) return prev;
       const next = new Set(prev);
       next.delete(key);
@@ -111,31 +150,41 @@ export default function CrosswordGrid({ puzzle, theme }: Props) {
 
   function handleCheckAnswers() {
     const wrong = new Set<string>();
+    const correct = new Set<string>();
 
     for (let r = 0; r < puzzle.rows; r++) {
       for (let c = 0; c < puzzle.cols; c++) {
         if (puzzle.grid[r][c] === "#") continue;
-        const typed = userGrid[r][c];
-        const answer = puzzle.grid[r][c];
 
-        if (typed !== "" && typed !== answer) {
+        const typed = userGrid[r][c];
+        const answer = puzzle.solution[r][c];
+
+        if (typed === "") continue;
+
+        if (typed === answer) {
+          correct.add(`${r}-${c}`);
+        } else {
           wrong.add(`${r}-${c}`);
         }
       }
     }
 
-    setCheckedCells(wrong);
+    setWrongCells(wrong);
+    setCorrectCells(correct);
   }
 
   function handleClearChecks() {
-    setCheckedCells(new Set());
+    setWrongCells(new Set());
+    setCorrectCells(new Set());
   }
 
   function handleResetPuzzle() {
     setUserGrid(emptyGrid);
-    setCheckedCells(new Set());
+    setWrongCells(new Set());
+    setCorrectCells(new Set());
     setElapsedSeconds(0);
     setShowWinModal(false);
+    localStorage.removeItem(storageKey);
   }
 
   function handleRevealLetter() {
@@ -143,7 +192,7 @@ export default function CrosswordGrid({ puzzle, theme }: Props) {
 
     setUserGrid((prev) => {
       const next = prev.map((row) => [...row]);
-      next[selectedRow][selectedCol] = puzzle.grid[selectedRow][selectedCol];
+      next[selectedRow][selectedCol] = puzzle.solution[selectedRow][selectedCol];
       return next;
     });
 
@@ -156,13 +205,23 @@ export default function CrosswordGrid({ puzzle, theme }: Props) {
 
     setUserGrid((prev) => {
       const next = prev.map((row) => [...row]);
+
       for (const cell of cells) {
-        next[cell.row][cell.col] = puzzle.grid[cell.row][cell.col];
+        next[cell.row][cell.col] = puzzle.solution[cell.row][cell.col];
+      }
+
+      return next;
+    });
+
+    setWrongCells((prev) => {
+      const next = new Set(prev);
+      for (const cell of cells) {
+        next.delete(`${cell.row}-${cell.col}`);
       }
       return next;
     });
 
-    setCheckedCells((prev) => {
+    setCorrectCells((prev) => {
       const next = new Set(prev);
       for (const cell of cells) {
         next.delete(`${cell.row}-${cell.col}`);
@@ -187,7 +246,7 @@ export default function CrosswordGrid({ puzzle, theme }: Props) {
     }, 1000);
 
     return () => window.clearInterval(id);
-  }, [showWinModal, puzzle.date]);
+  }, [showWinModal, storageKey]);
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
@@ -261,12 +320,20 @@ export default function CrosswordGrid({ puzzle, theme }: Props) {
   }, [selectedRow, selectedCol, direction, puzzle.rows, puzzle.cols, showWinModal]);
 
   const isComplete = useMemo(() => {
+    if (puzzle.clues.across.length + puzzle.clues.down.length === 0) {
+      return false;
+    }
+
     for (let r = 0; r < puzzle.rows; r++) {
       for (let c = 0; c < puzzle.cols; c++) {
         if (puzzle.grid[r][c] === "#") continue;
-        if (userGrid[r][c] !== puzzle.grid[r][c]) return false;
+
+        if (userGrid[r][c] !== puzzle.solution[r][c]) {
+          return false;
+        }
       }
     }
+
     return true;
   }, [userGrid, puzzle]);
 
@@ -299,7 +366,9 @@ export default function CrosswordGrid({ puzzle, theme }: Props) {
         <div className="space-y-4">
           <section
             className={`rounded-3xl border p-5 sm:p-6 ${
-              isDark ? "border-neutral-800 bg-neutral-950" : "border-neutral-200 bg-neutral-50"
+              isDark
+                ? "border-neutral-800 bg-neutral-950"
+                : "border-neutral-200 bg-neutral-50"
             }`}
           >
             <div className="mb-5 flex flex-wrap gap-2">
@@ -313,7 +382,9 @@ export default function CrosswordGrid({ puzzle, theme }: Props) {
 
               <span
                 className={`rounded-full px-3 py-1 text-xs font-bold ${
-                  isDark ? "bg-yellow-900/40 text-yellow-200" : "bg-yellow-100 text-yellow-700"
+                  isDark
+                    ? "bg-yellow-900/40 text-yellow-200"
+                    : "bg-yellow-100 text-yellow-700"
                 }`}
               >
                 {puzzle.rows} × {puzzle.cols}
@@ -321,7 +392,9 @@ export default function CrosswordGrid({ puzzle, theme }: Props) {
 
               <span
                 className={`rounded-full px-3 py-1 text-xs font-bold ${
-                  isDark ? "bg-green-950 text-green-300" : "bg-green-100 text-green-700"
+                  isDark
+                    ? "bg-green-950 text-green-300"
+                    : "bg-green-100 text-green-700"
                 }`}
               >
                 Time: {formatTime(elapsedSeconds)}
@@ -333,6 +406,24 @@ export default function CrosswordGrid({ puzzle, theme }: Props) {
                 }`}
               >
                 Solved: {stats.solvedCount}
+              </span>
+
+              <span
+                className={`rounded-full px-3 py-1 text-xs font-bold ${
+                  isDark
+                    ? "bg-green-950 text-green-300"
+                    : "bg-green-100 text-green-700"
+                }`}
+              >
+                Green = correct
+              </span>
+
+              <span
+                className={`rounded-full px-3 py-1 text-xs font-bold ${
+                  isDark ? "bg-red-950 text-red-300" : "bg-red-100 text-red-700"
+                }`}
+              >
+                Red = wrong
               </span>
 
               <button
@@ -387,9 +478,7 @@ export default function CrosswordGrid({ puzzle, theme }: Props) {
                 type="button"
                 onClick={handleResetPuzzle}
                 className={`rounded-full px-3 py-1 text-xs font-bold transition ${
-                  isDark
-                    ? "bg-red-950 text-red-200 hover:bg-red-900"
-                    : "bg-red-100 text-red-700 hover:bg-red-200"
+                  isDark ? "bg-red-950 text-red-200 hover:bg-red-900" : "bg-red-100 text-red-700 hover:bg-red-200"
                 }`}
               >
                 Reset Puzzle
@@ -407,7 +496,8 @@ export default function CrosswordGrid({ puzzle, theme }: Props) {
                     const isBlack = cell === "#";
                     const isSelected = r === selectedRow && c === selectedCol;
                     const isInActiveWord = activeWordSet.has(`${r}-${c}`);
-                    const isWrong = checkedCells.has(`${r}-${c}`);
+                    const isWrong = wrongCells.has(`${r}-${c}`);
+                    const isCorrect = correctCells.has(`${r}-${c}`);
                     const cellNumber = getCellNumber(puzzle, r, c);
 
                     return (
@@ -433,6 +523,11 @@ export default function CrosswordGrid({ puzzle, theme }: Props) {
                             ? isDark
                               ? "z-10 scale-[1.05] bg-yellow-400 text-black ring-2 ring-yellow-300 shadow-[0_0_14px_rgba(250,204,21,0.45)]"
                               : "z-10 scale-[1.05] bg-yellow-300 text-black ring-2 ring-yellow-400 shadow-[0_0_12px_rgba(250,204,21,0.22)]"
+                            : "",
+                          isCorrect
+                            ? isDark
+                              ? "bg-green-600 text-white ring-2 ring-green-300"
+                              : "bg-green-200 text-green-900 ring-2 ring-green-400"
                             : "",
                           isWrong
                             ? isDark
@@ -488,8 +583,12 @@ export default function CrosswordGrid({ puzzle, theme }: Props) {
             </p>
 
             <div className="mt-5 space-y-2 text-sm">
-              <div>Time: <span className="font-bold">{formatTime(elapsedSeconds)}</span></div>
-              <div>Solved total: <span className="font-bold">{stats.solvedCount}</span></div>
+              <div>
+                Time: <span className="font-bold">{formatTime(elapsedSeconds)}</span>
+              </div>
+              <div>
+                Solved total: <span className="font-bold">{stats.solvedCount}</span>
+              </div>
               <div>
                 Best time:{" "}
                 <span className="font-bold">
