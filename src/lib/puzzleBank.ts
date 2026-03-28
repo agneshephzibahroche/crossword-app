@@ -1,0 +1,128 @@
+import { Puzzle } from "@/types/puzzle";
+
+export const PUZZLE_BANK: Puzzle[] = [
+  {
+    id: "bank-1",
+    date: "2026-03-28",
+    title: "Cross Mini 1",
+    rows: 5,
+    cols: 5,
+    grid: [
+      ["", "", "#", "", ""],
+      ["", "", "", "", ""],
+      ["#", "", "", "", "#"],
+      ["", "", "", "", ""],
+      ["", "", "#", "", ""],
+    ],
+    solution: [
+      ["T", "O", "#", "P", "I"],
+      ["O", "C", "E", "A", "N"],
+      ["#", "E", "A", "R", "#"],
+      ["P", "A", "R", "T", "Y"],
+      ["A", "N", "#", "Y", "O"],
+    ],
+    clues: {
+      across: [
+        { number: 1, row: 0, col: 0, clue: "Toward", answer: "TO" },
+        { number: 2, row: 0, col: 3, clue: "Circle ratio", answer: "PI" },
+        { number: 4, row: 1, col: 0, clue: "Large body of salt water", answer: "OCEAN" },
+        { number: 6, row: 2, col: 1, clue: "Part of the body used for hearing", answer: "EAR" },
+        { number: 7, row: 3, col: 0, clue: "Celebration", answer: "PARTY" },
+        { number: 8, row: 4, col: 0, clue: "Indefinite article", answer: "AN" },
+        { number: 9, row: 4, col: 3, clue: "Casual greeting", answer: "YO" },
+      ],
+      down: [
+  { number: 1, row: 0, col: 0, clue: "Located at", answer: "TO" },
+  { number: 2, row: 0, col: 1, clue: "Large body of salt water", answer: "OCEAN" },
+  { number: 3, row: 0, col: 3, clue: "Festive gathering", answer: "PARTY" },
+  { number: 4, row: 0, col: 4, clue: "Opposite of out", answer: "IN" },
+  { number: 5, row: 1, col: 2, clue: "Body part for hearing", answer: "EAR" },
+  { number: 7, row: 3, col: 0, clue: "A musical note", answer: "PA" },
+],
+    },
+  },
+
+  {
+    id: "bank-2",
+    date: "2026-03-28",
+    title: "Cross Mini 2",
+    rows: 5,
+    cols: 5,
+    grid: [
+      ["", "", "#", "", ""],
+      ["", "", "", "", ""],
+      ["#", "", "", "", "#"],
+      ["", "", "", "", ""],
+      ["", "", "#", "", ""],
+    ],
+    solution: [
+      ["A", "B", "#", "W", "E"],
+      ["T", "R", "A", "I", "L"],
+      ["#", "E", "N", "D", "#"],
+      ["F", "A", "D", "E", "D"],
+      ["A", "D", "#", "N", "O"],
+    ],
+    clues: {
+      across: [
+        { number: 1, row: 0, col: 0, clue: "Muscle, informally", answer: "AB" },
+        { number: 2, row: 0, col: 3, clue: "Us, as subject", answer: "WE" },
+        { number: 4, row: 1, col: 0, clue: "Path through the woods", answer: "TRAIL" },
+        { number: 6, row: 2, col: 1, clue: "Finish", answer: "END" },
+        { number: 7, row: 3, col: 0, clue: "Lost color or brightness", answer: "FADED" },
+        { number: 8, row: 4, col: 0, clue: "Promotional notice, briefly", answer: "AD" },
+        { number: 9, row: 4, col: 3, clue: "Opposite of yes", answer: "NO" },
+      ],
+      down: [
+        { number: 1, row: 0, col: 0, clue: "Located at", answer: "AT" },
+        { number: 2, row: 0, col: 1, clue: "Baked staple food", answer: "BREAD" },
+        { number: 3, row: 0, col: 3, clue: "Make wider", answer: "WIDEN" },
+        { number: 4, row: 0, col: 4, clue: "Spanish article", answer: "EL" },
+        { number: 5, row: 1, col: 2, clue: "Conjunction meaning plus", answer: "AND" },
+        { number: 7, row: 3, col: 0, clue: "A musical note", answer: "FA" },
+        { number: 9, row: 3, col: 4, clue: "Perform", answer: "DO" },
+      ],
+    },
+  },
+
+  {
+    id: "bank-3",
+    date: "2026-03-28",
+    title: "Cross Mini 3",
+    rows: 5,
+    cols: 5,
+    grid: [
+      ["", "", "#", "", ""],
+      ["", "", "", "", ""],
+      ["#", "", "", "", "#"],
+      ["", "", "", "", ""],
+      ["", "", "#", "", ""],
+    ],
+    solution: [
+      ["A", "S", "#", "G", "O"],
+      ["S", "C", "A", "R", "F"],
+      ["#", "O", "N", "E", "#"],
+      ["O", "R", "D", "E", "R"],
+      ["N", "E", "#", "N", "E"],
+    ],
+    clues: {
+      across: [
+        { number: 1, row: 0, col: 0, clue: "In the role of", answer: "AS" },
+        { number: 2, row: 0, col: 3, clue: "Move", answer: "GO" },
+        { number: 4, row: 1, col: 0, clue: "Neckwear for winter", answer: "SCARF" },
+        { number: 6, row: 2, col: 1, clue: "The number after zero", answer: "ONE" },
+        { number: 7, row: 3, col: 0, clue: "Request or arrangement", answer: "ORDER" },
+        { number: 8, row: 4, col: 0, clue: "Compass direction", answer: "NE" },
+        { number: 9, row: 4, col: 3, clue: "Compass direction", answer: "NE" },
+      ],
+      down: [
+  { number: 1, row: 0, col: 0, clue: "In the role of", answer: "AS" },
+  { number: 2, row: 0, col: 1, clue: "Tally in a game", answer: "SCORE" },
+  { number: 3, row: 0, col: 3, clue: "Color of grass", answer: "GREEN" },
+  { number: 4, row: 0, col: 4, clue: "Belonging to", answer: "OF" },
+  { number: 5, row: 1, col: 2, clue: "Conjunction meaning plus", answer: "AND" },
+  { number: 7, row: 3, col: 0, clue: "On top of", answer: "ON" },
+  { number: 9, row: 3, col: 4, clue: "Regarding", answer: "RE" },
+],
+    },
+  },
+];

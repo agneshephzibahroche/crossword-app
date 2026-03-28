@@ -23,7 +23,7 @@ export default function ClueList({
   const isDark = theme === "dark";
 
   return (
-    <div className="grid gap-6 md:grid-cols-2">
+    <div className="grid gap-6 lg:grid-cols-2">
       <section
         className={`rounded-3xl border p-5 sm:p-6 ${
           isDark ? "border-pink-900 bg-[#2a1f24]" : "border-pink-200 bg-pink-50"

@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import CrosswordGrid from "@/components/CrosswordGrid";
 import { Puzzle } from "@/types/puzzle";
 import { ThemeMode } from "@/types/theme";
@@ -13,13 +13,24 @@ type Props = {
 export default function HomeClientWithPuzzle({ puzzle }: Props) {
   const [theme, setTheme] = useState<ThemeMode>("light");
   const [loadingPuzzle, setLoadingPuzzle] = useState(false);
+
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
 
   const isDark = theme === "dark";
 
+  useEffect(() => {
+    setLoadingPuzzle(false);
+  }, [puzzle.id]);
+
   function handleNewPuzzle() {
     setLoadingPuzzle(true);
-    router.refresh();
+
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("r", Date.now().toString());
+
+    router.push(`${pathname}?${params.toString()}`);
   }
 
   return (
@@ -28,7 +39,7 @@ export default function HomeClientWithPuzzle({ puzzle }: Props) {
         isDark ? "bg-black text-white" : "bg-white text-black"
       }`}
     >
-      <div className="mx-auto max-w-7xl">
+      <div className="mx-auto max-w-[1400px]">
         <div className="mb-5 flex justify-end gap-3">
           <button
             type="button"

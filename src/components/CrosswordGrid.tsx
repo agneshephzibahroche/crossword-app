@@ -28,6 +28,7 @@ export default function CrosswordGrid({ puzzle, theme }: Props) {
   const [correctCells, setCorrectCells] = useState<Set<string>>(new Set());
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [showWinModal, setShowWinModal] = useState(false);
+  const [hasShownWin, setHasShownWin] = useState(false);
   const [stats, setStats] = useState<CrosswordStats>({
     solvedCount: 0,
     bestTimeSeconds: null,
@@ -36,10 +37,7 @@ export default function CrosswordGrid({ puzzle, theme }: Props) {
   const storageKey = `crossword-progress-${puzzle.id}`;
 
   const emptyGrid = useMemo(
-    () =>
-      puzzle.grid.map((row) =>
-        row.map((cell) => (cell === "#" ? "#" : ""))
-      ),
+    () => puzzle.grid.map((row) => row.map((cell) => (cell === "#" ? "#" : ""))),
     [puzzle.grid]
   );
 
@@ -83,6 +81,7 @@ export default function CrosswordGrid({ puzzle, theme }: Props) {
     setCorrectCells(new Set());
     setElapsedSeconds(0);
     setShowWinModal(false);
+    setHasShownWin(false);
     setSelectedRow(0);
     setSelectedCol(0);
     setDirection("across");
@@ -120,11 +119,7 @@ export default function CrosswordGrid({ puzzle, theme }: Props) {
     }
   }
 
-  function handleSelectClue(
-    row: number,
-    col: number,
-    nextDirection: Direction
-  ) {
+  function handleSelectClue(row: number, col: number, nextDirection: Direction) {
     setSelectedRow(row);
     setSelectedCol(col);
     setDirection(nextDirection);
@@ -134,14 +129,12 @@ export default function CrosswordGrid({ puzzle, theme }: Props) {
     const key = `${row}-${col}`;
 
     setWrongCells((prev) => {
-      if (!prev.has(key)) return prev;
       const next = new Set(prev);
       next.delete(key);
       return next;
     });
 
     setCorrectCells((prev) => {
-      if (!prev.has(key)) return prev;
       const next = new Set(prev);
       next.delete(key);
       return next;
@@ -173,30 +166,14 @@ export default function CrosswordGrid({ puzzle, theme }: Props) {
     setCorrectCells(correct);
   }
 
-  function handleClearChecks() {
-    setWrongCells(new Set());
-    setCorrectCells(new Set());
-  }
-
   function handleResetPuzzle() {
     setUserGrid(emptyGrid);
     setWrongCells(new Set());
     setCorrectCells(new Set());
     setElapsedSeconds(0);
     setShowWinModal(false);
+    setHasShownWin(false);
     localStorage.removeItem(storageKey);
-  }
-
-  function handleRevealLetter() {
-    if (isBlackCell(selectedRow, selectedCol)) return;
-
-    setUserGrid((prev) => {
-      const next = prev.map((row) => [...row]);
-      next[selectedRow][selectedCol] = puzzle.solution[selectedRow][selectedCol];
-      return next;
-    });
-
-    clearCheckedCell(selectedRow, selectedCol);
   }
 
   function handleRevealWord() {
@@ -338,9 +315,10 @@ export default function CrosswordGrid({ puzzle, theme }: Props) {
   }, [userGrid, puzzle]);
 
   useEffect(() => {
-    if (!isComplete || showWinModal) return;
+    if (!isComplete || hasShownWin) return;
 
     setShowWinModal(true);
+    setHasShownWin(true);
 
     const nextStats: CrosswordStats = {
       solvedCount: stats.solvedCount + 1,
@@ -352,7 +330,7 @@ export default function CrosswordGrid({ puzzle, theme }: Props) {
 
     setStats(nextStats);
     localStorage.setItem(STATS_KEY, JSON.stringify(nextStats));
-  }, [isComplete, showWinModal, elapsedSeconds, stats]);
+  }, [isComplete, hasShownWin, elapsedSeconds, stats]);
 
   function formatTime(totalSeconds: number) {
     const mins = Math.floor(totalSeconds / 60);
@@ -362,8 +340,58 @@ export default function CrosswordGrid({ puzzle, theme }: Props) {
 
   return (
     <>
-      <div className="grid gap-8 xl:grid-cols-[auto_minmax(320px,1fr)]">
+      <div className="grid gap-8 xl:grid-cols-[minmax(420px,520px)_minmax(520px,1fr)] xl:items-start">
         <div className="space-y-4">
+          <div className="flex items-center gap-3">
+            <span
+              className={`rounded-full px-3 py-1 text-sm font-bold ${
+                isDark
+                  ? "bg-green-950 text-green-300"
+                  : "bg-green-100 text-green-700"
+              }`}
+            >
+              Time: {formatTime(elapsedSeconds)}
+            </span>
+          </div>
+
+          <div className="flex flex-wrap gap-3">
+            <button
+              type="button"
+              onClick={handleCheckAnswers}
+              className={`rounded-full px-4 py-2 text-sm font-bold transition ${
+                isDark
+                  ? "bg-neutral-800 text-white hover:bg-neutral-700"
+                  : "bg-neutral-200 text-black hover:bg-neutral-300"
+              }`}
+            >
+              Check Answers
+            </button>
+
+            <button
+              type="button"
+              onClick={handleRevealWord}
+              className={`rounded-full px-4 py-2 text-sm font-bold transition ${
+                isDark
+                  ? "bg-yellow-900/50 text-yellow-200 hover:bg-yellow-900/70"
+                  : "bg-yellow-200 text-yellow-900 hover:bg-yellow-300"
+              }`}
+            >
+              Reveal Word
+            </button>
+
+            <button
+              type="button"
+              onClick={handleResetPuzzle}
+              className={`rounded-full px-4 py-2 text-sm font-bold transition ${
+                isDark
+                  ? "bg-red-950 text-red-200 hover:bg-red-900"
+                  : "bg-red-100 text-red-700 hover:bg-red-200"
+              }`}
+            >
+              Reset Puzzle
+            </button>
+          </div>
+
           <section
             className={`rounded-3xl border p-5 sm:p-6 ${
               isDark
@@ -371,123 +399,11 @@ export default function CrosswordGrid({ puzzle, theme }: Props) {
                 : "border-neutral-200 bg-neutral-50"
             }`}
           >
-            <div className="mb-5 flex flex-wrap gap-2">
-              <span
-                className={`rounded-full px-3 py-1 text-xs font-bold ${
-                  isDark ? "bg-blue-950 text-blue-300" : "bg-blue-100 text-blue-700"
-                }`}
-              >
-                Direction: {direction}
-              </span>
-
-              <span
-                className={`rounded-full px-3 py-1 text-xs font-bold ${
-                  isDark
-                    ? "bg-yellow-900/40 text-yellow-200"
-                    : "bg-yellow-100 text-yellow-700"
-                }`}
-              >
-                {puzzle.rows} × {puzzle.cols}
-              </span>
-
-              <span
-                className={`rounded-full px-3 py-1 text-xs font-bold ${
-                  isDark
-                    ? "bg-green-950 text-green-300"
-                    : "bg-green-100 text-green-700"
-                }`}
-              >
-                Time: {formatTime(elapsedSeconds)}
-              </span>
-
-              <span
-                className={`rounded-full px-3 py-1 text-xs font-bold ${
-                  isDark ? "bg-pink-950 text-pink-300" : "bg-pink-100 text-pink-700"
-                }`}
-              >
-                Solved: {stats.solvedCount}
-              </span>
-
-              <span
-                className={`rounded-full px-3 py-1 text-xs font-bold ${
-                  isDark
-                    ? "bg-green-950 text-green-300"
-                    : "bg-green-100 text-green-700"
-                }`}
-              >
-                Green = correct
-              </span>
-
-              <span
-                className={`rounded-full px-3 py-1 text-xs font-bold ${
-                  isDark ? "bg-red-950 text-red-300" : "bg-red-100 text-red-700"
-                }`}
-              >
-                Red = wrong
-              </span>
-
-              <button
-                type="button"
-                onClick={handleCheckAnswers}
-                className={`rounded-full px-3 py-1 text-xs font-bold transition ${
-                  isDark
-                    ? "bg-neutral-800 text-white hover:bg-neutral-700"
-                    : "bg-neutral-200 text-black hover:bg-neutral-300"
-                }`}
-              >
-                Check Answers
-              </button>
-
-              <button
-                type="button"
-                onClick={handleClearChecks}
-                className={`rounded-full px-3 py-1 text-xs font-bold transition ${
-                  isDark
-                    ? "bg-neutral-900 text-neutral-200 hover:bg-neutral-800"
-                    : "bg-white text-neutral-700 hover:bg-neutral-100"
-                }`}
-              >
-                Clear Checks
-              </button>
-
-              <button
-                type="button"
-                onClick={handleRevealLetter}
-                className={`rounded-full px-3 py-1 text-xs font-bold transition ${
-                  isDark
-                    ? "bg-yellow-900/50 text-yellow-200 hover:bg-yellow-900/70"
-                    : "bg-yellow-200 text-yellow-900 hover:bg-yellow-300"
-                }`}
-              >
-                Reveal Letter
-              </button>
-
-              <button
-                type="button"
-                onClick={handleRevealWord}
-                className={`rounded-full px-3 py-1 text-xs font-bold transition ${
-                  isDark
-                    ? "bg-amber-900/50 text-amber-200 hover:bg-amber-900/70"
-                    : "bg-amber-200 text-amber-900 hover:bg-amber-300"
-                }`}
-              >
-                Reveal Word
-              </button>
-
-              <button
-                type="button"
-                onClick={handleResetPuzzle}
-                className={`rounded-full px-3 py-1 text-xs font-bold transition ${
-                  isDark ? "bg-red-950 text-red-200 hover:bg-red-900" : "bg-red-100 text-red-700 hover:bg-red-200"
-                }`}
-              >
-                Reset Puzzle
-              </button>
-            </div>
-
             <div
               className={`inline-block rounded-2xl border p-3 sm:p-4 ${
-                isDark ? "border-neutral-700 bg-neutral-900" : "border-yellow-300 bg-yellow-50"
+                isDark
+                  ? "border-neutral-700 bg-neutral-900"
+                  : "border-yellow-300 bg-yellow-50"
               }`}
             >
               {puzzle.grid.map((row, r) => (
@@ -506,7 +422,7 @@ export default function CrosswordGrid({ puzzle, theme }: Props) {
                         type="button"
                         onClick={() => handleCellClick(r, c)}
                         className={[
-                          "relative flex h-12 w-12 items-center justify-center border text-lg font-black transition-all duration-150 ease-out sm:h-14 sm:w-14",
+                          "relative flex h-14 w-14 items-center justify-center border text-lg font-black transition-all duration-150 ease-out sm:h-16 sm:w-16",
                           isBlack
                             ? isDark
                               ? "border-neutral-950 bg-neutral-950"
@@ -571,10 +487,16 @@ export default function CrosswordGrid({ puzzle, theme }: Props) {
       </div>
 
       {showWinModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+          onClick={() => setShowWinModal(false)}
+        >
           <div
+            onClick={(e) => e.stopPropagation()}
             className={`w-full max-w-md rounded-3xl border p-6 shadow-2xl ${
-              isDark ? "border-neutral-700 bg-neutral-900 text-white" : "border-neutral-200 bg-white text-black"
+              isDark
+                ? "border-neutral-700 bg-neutral-900 text-white"
+                : "border-neutral-200 bg-white text-black"
             }`}
           >
             <h2 className="text-2xl font-black">Puzzle complete 🎉</h2>
@@ -592,7 +514,9 @@ export default function CrosswordGrid({ puzzle, theme }: Props) {
               <div>
                 Best time:{" "}
                 <span className="font-bold">
-                  {stats.bestTimeSeconds === null ? "—" : formatTime(stats.bestTimeSeconds)}
+                  {stats.bestTimeSeconds === null
+                    ? "—"
+                    : formatTime(stats.bestTimeSeconds)}
                 </span>
               </div>
             </div>
@@ -602,7 +526,9 @@ export default function CrosswordGrid({ puzzle, theme }: Props) {
                 type="button"
                 onClick={() => setShowWinModal(false)}
                 className={`rounded-full px-4 py-2 text-sm font-bold ${
-                  isDark ? "bg-neutral-800 text-white hover:bg-neutral-700" : "bg-neutral-200 text-black hover:bg-neutral-300"
+                  isDark
+                    ? "bg-neutral-800 text-white hover:bg-neutral-700"
+                    : "bg-neutral-200 text-black hover:bg-neutral-300"
                 }`}
               >
                 Close
@@ -612,7 +538,9 @@ export default function CrosswordGrid({ puzzle, theme }: Props) {
                 type="button"
                 onClick={handleResetPuzzle}
                 className={`rounded-full px-4 py-2 text-sm font-bold ${
-                  isDark ? "bg-yellow-700 text-white hover:bg-yellow-600" : "bg-yellow-300 text-black hover:bg-yellow-400"
+                  isDark
+                    ? "bg-yellow-700 text-white hover:bg-yellow-600"
+                    : "bg-yellow-300 text-black hover:bg-yellow-400"
                 }`}
               >
                 Play Again
