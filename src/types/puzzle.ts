@@ -8,6 +8,11 @@ export interface Clue {
   answer: string;
 }
 
+export interface PuzzleEntry {
+  answer: string;
+  clues: string[];
+}
+
 export interface Puzzle {
   id: string;
   date: string;
