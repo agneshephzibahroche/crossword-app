@@ -385,12 +385,6 @@ export default function CrosswordGrid({ puzzle }: Props) {
     return () => window.clearInterval(id);
   }, [showWinModal, storageKey]);
 
-  useEffect(() => {
-    if (!showWinModal) {
-      mobileInputRef.current?.focus();
-    }
-  }, [showWinModal]);
-
   function handleLetterInput(letter: string) {
     if (showWinModal || isBlackCell(selectedRow, selectedCol)) {
       return;
