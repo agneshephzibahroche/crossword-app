@@ -65,6 +65,7 @@ export default function CrosswordGrid({ puzzle }: Props) {
   const [correctCells, setCorrectCells] = useState<Set<string>>(new Set());
   const [correctWords, setCorrectWords] = useState<Set<string>>(new Set());
   const [revealedCells, setRevealedCells] = useState<Set<string>>(new Set());
+  const [revealedWords, setRevealedWords] = useState<Set<string>>(new Set());
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [showWinModal, setShowWinModal] = useState(false);
   const [hasShownWin, setHasShownWin] = useState(false);
@@ -162,6 +163,7 @@ export default function CrosswordGrid({ puzzle }: Props) {
     setWrongCells(new Set());
     setCorrectCells(new Set());
     setRevealedCells(new Set());
+    setRevealedWords(new Set());
     setElapsedSeconds(0);
     setShowWinModal(false);
     setHasShownWin(false);
@@ -260,6 +262,20 @@ export default function CrosswordGrid({ puzzle }: Props) {
     });
   }
 
+  function clearRevealedWord(row: number, col: number, wordDirection: Direction) {
+    const key = getWordKey(row, col, wordDirection);
+
+    setRevealedWords((prev) => {
+      if (!prev.has(key)) {
+        return prev;
+      }
+
+      const next = new Set(prev);
+      next.delete(key);
+      return next;
+    });
+  }
+
   function handleCheckAnswers() {
     const wrong = new Set<string>();
     const correct = new Set<string>();
@@ -289,6 +305,7 @@ export default function CrosswordGrid({ puzzle }: Props) {
     setWrongCells(new Set());
     setCorrectCells(new Set());
     setRevealedCells(new Set());
+    setRevealedWords(new Set());
   }
 
   function handleResetPuzzle() {
@@ -317,6 +334,12 @@ export default function CrosswordGrid({ puzzle }: Props) {
       for (const cell of cells) {
         next.add(`${cell.row}-${cell.col}`);
       }
+      return next;
+    });
+
+    setRevealedWords((prev) => {
+      const next = new Set(prev);
+      next.add(getWordKey(cells[0].row, cells[0].col, direction));
       return next;
     });
 
@@ -377,35 +400,6 @@ export default function CrosswordGrid({ puzzle }: Props) {
     return next;
   }, [correctWords, puzzle]);
 
-  const revealedWords = useMemo(() => {
-    const next = new Set<string>();
-    const allClues = [
-      ...puzzle.clues.across.map((clue) => ({
-        row: clue.row,
-        col: clue.col,
-        direction: "across" as const,
-      })),
-      ...puzzle.clues.down.map((clue) => ({
-        row: clue.row,
-        col: clue.col,
-        direction: "down" as const,
-      })),
-    ];
-
-    for (const clue of allClues) {
-      const cells = getWordCells(puzzle, clue.row, clue.col, clue.direction);
-      const hasRevealedCell = cells.some((cell) =>
-        revealedCells.has(`${cell.row}-${cell.col}`)
-      );
-
-      if (hasRevealedCell) {
-        next.add(getWordKey(clue.row, clue.col, clue.direction));
-      }
-    }
-
-    return next;
-  }, [puzzle, revealedCells]);
-
   useEffect(() => {
     if (showWinModal) return;
 
@@ -431,6 +425,7 @@ export default function CrosswordGrid({ puzzle }: Props) {
 
       clearCheckedCell(selectedRow, selectedCol);
       clearRevealedCell(selectedRow, selectedCol);
+      clearRevealedWord(selectedRow, selectedCol, direction);
 
       if (direction === "across") {
         moveSelection(selectedRow, selectedCol + 1);
@@ -489,6 +484,7 @@ export default function CrosswordGrid({ puzzle }: Props) {
 
         clearCheckedCell(selectedRow, selectedCol);
         clearRevealedCell(selectedRow, selectedCol);
+        clearRevealedWord(selectedRow, selectedCol, direction);
         return;
       }
 
