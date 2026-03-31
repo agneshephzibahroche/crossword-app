@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { FormEvent, KeyboardEvent } from "react";
+import type { FormEvent } from "react";
 import ClueList from "@/components/ClueList";
 import { getCellNumber, getWordCells } from "@/lib/crossword";
 import { Direction, Puzzle } from "@/types/puzzle";
@@ -17,8 +17,47 @@ type CrosswordStats = {
 
 const STATS_KEY = "crossword-daily-stats-v1";
 
+function getWordKey(row: number, col: number, wordDirection: Direction) {
+  return `${row}-${col}-${wordDirection}`;
+}
+
+function computeCorrectWords(
+  puzzle: Puzzle,
+  gridToCheck: string[][],
+  revealedCells: Set<string>
+) {
+  const next = new Set<string>();
+  const allClues = [
+    ...puzzle.clues.across.map((clue) => ({
+      ...clue,
+      direction: "across" as const,
+    })),
+    ...puzzle.clues.down.map((clue) => ({
+      ...clue,
+      direction: "down" as const,
+    })),
+  ];
+
+  for (const clue of allClues) {
+    const cells = getWordCells(puzzle, clue.row, clue.col, clue.direction);
+    const hasRevealedCell = cells.some((cell) =>
+      revealedCells.has(`${cell.row}-${cell.col}`)
+    );
+    const isWordCorrect = cells.every(
+      (cell) => gridToCheck[cell.row][cell.col] === puzzle.solution[cell.row][cell.col]
+    );
+
+    if (isWordCorrect && !hasRevealedCell) {
+      next.add(getWordKey(clue.row, clue.col, clue.direction));
+    }
+  }
+
+  return next;
+}
+
 export default function CrosswordGrid({ puzzle }: Props) {
   const mobileInputRef = useRef<HTMLInputElement | null>(null);
+  const [usesTouchKeyboard, setUsesTouchKeyboard] = useState(false);
   const [selectedRow, setSelectedRow] = useState(0);
   const [selectedCol, setSelectedCol] = useState(0);
   const [direction, setDirection] = useState<Direction>("across");
@@ -65,41 +104,27 @@ export default function CrosswordGrid({ puzzle }: Props) {
     }
   }, []);
 
-  function getWordKey(row: number, col: number, wordDirection: Direction) {
-    return `${row}-${col}-${wordDirection}`;
-  }
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const mediaQuery = window.matchMedia("(pointer: coarse)");
+    const updateTouchMode = () => {
+      setUsesTouchKeyboard(mediaQuery.matches);
+    };
+
+    updateTouchMode();
+    mediaQuery.addEventListener("change", updateTouchMode);
+
+    return () => {
+      mediaQuery.removeEventListener("change", updateTouchMode);
+    };
+  }, []);
 
   const evaluateCorrectWords = useCallback(
     (gridToCheck: string[][]) => {
-      const next = new Set<string>();
-      const allClues = [
-        ...puzzle.clues.across.map((clue) => ({
-          ...clue,
-          direction: "across" as const,
-        })),
-        ...puzzle.clues.down.map((clue) => ({
-          ...clue,
-          direction: "down" as const,
-        })),
-      ];
-
-      for (const clue of allClues) {
-        const cells = getWordCells(puzzle, clue.row, clue.col, clue.direction);
-        const hasRevealedCell = cells.some((cell) =>
-          revealedCells.has(`${cell.row}-${cell.col}`)
-        );
-        const isWordCorrect = cells.every(
-          (cell) =>
-            gridToCheck[cell.row][cell.col] ===
-            puzzle.solution[cell.row][cell.col]
-        );
-
-        if (isWordCorrect && !hasRevealedCell) {
-          next.add(getWordKey(clue.row, clue.col, clue.direction));
-        }
-      }
-
-      setCorrectWords(next);
+      setCorrectWords(computeCorrectWords(puzzle, gridToCheck, revealedCells));
     },
     [puzzle, revealedCells]
   );
@@ -120,18 +145,18 @@ export default function CrosswordGrid({ puzzle }: Props) {
         ) {
           const nextGrid = parsed as string[][];
           setUserGrid(nextGrid);
-          evaluateCorrectWords(nextGrid);
+          setCorrectWords(computeCorrectWords(puzzle, nextGrid, new Set()));
         } else {
           setUserGrid(emptyGrid);
-          evaluateCorrectWords(emptyGrid);
+          setCorrectWords(computeCorrectWords(puzzle, emptyGrid, new Set()));
         }
       } catch {
         setUserGrid(emptyGrid);
-        evaluateCorrectWords(emptyGrid);
+        setCorrectWords(computeCorrectWords(puzzle, emptyGrid, new Set()));
       }
     } else {
       setUserGrid(emptyGrid);
-      evaluateCorrectWords(emptyGrid);
+      setCorrectWords(computeCorrectWords(puzzle, emptyGrid, new Set()));
     }
 
     setWrongCells(new Set());
@@ -143,7 +168,7 @@ export default function CrosswordGrid({ puzzle }: Props) {
     setSelectedRow(0);
     setSelectedCol(0);
     setDirection("across");
-  }, [emptyGrid, evaluateCorrectWords, puzzle.cols, puzzle.rows, storageKey]);
+  }, [emptyGrid, puzzle, puzzle.cols, puzzle.rows, storageKey]);
 
   useEffect(() => {
     localStorage.setItem(storageKey, JSON.stringify(userGrid));
@@ -179,13 +204,17 @@ export default function CrosswordGrid({ puzzle }: Props) {
 
     if (selectedRow === row && selectedCol === col) {
       setDirection((prev) => (prev === "across" ? "down" : "across"));
-      mobileInputRef.current?.focus();
+      if (usesTouchKeyboard) {
+        mobileInputRef.current?.focus();
+      }
       return;
     }
 
     setSelectedRow(row);
     setSelectedCol(col);
-    mobileInputRef.current?.focus();
+    if (usesTouchKeyboard) {
+      mobileInputRef.current?.focus();
+    }
   }
 
   function handleSelectClue(
@@ -196,7 +225,9 @@ export default function CrosswordGrid({ puzzle }: Props) {
     setSelectedRow(row);
     setSelectedCol(col);
     setDirection(nextDirection);
-    mobileInputRef.current?.focus();
+    if (usesTouchKeyboard) {
+      mobileInputRef.current?.focus();
+    }
   }
 
   function clearCheckedCell(row: number, col: number) {
@@ -503,12 +534,12 @@ export default function CrosswordGrid({ puzzle }: Props) {
     ]
   );
 
-  function handleInputKeyDown(event: KeyboardEvent<HTMLInputElement>) {
-    handleKeyInput(event);
-  }
-
   useEffect(() => {
     function onWindowKeyDown(event: globalThis.KeyboardEvent) {
+      if (usesTouchKeyboard) {
+        return;
+      }
+
       const activeElement = document.activeElement;
       const isTypingIntoField =
         activeElement instanceof HTMLInputElement ||
@@ -532,13 +563,7 @@ export default function CrosswordGrid({ puzzle }: Props) {
     return () => window.removeEventListener("keydown", onWindowKeyDown);
   }, [
     handleKeyInput,
-    direction,
-    isBlackCell,
-    moveSelection,
-    selectedCol,
-    selectedRow,
-    showWinModal,
-    userGrid,
+    usesTouchKeyboard,
   ]);
 
   const isComplete = useMemo(() => {
@@ -726,22 +751,27 @@ export default function CrosswordGrid({ puzzle }: Props) {
               <section className="flex justify-center rounded-[28px] border border-[var(--line)] bg-[var(--card-muted)] p-4 sm:p-5">
                 <div
                   className="relative inline-block rounded-[24px] border border-[var(--line-strong)] bg-[var(--surface)] p-2 shadow-[0_12px_24px_rgba(18,31,53,0.06)] sm:p-3"
-                  onClick={() => mobileInputRef.current?.focus()}
+                  onClick={() => {
+                    if (usesTouchKeyboard) {
+                      mobileInputRef.current?.focus();
+                    }
+                  }}
                 >
-                  <input
-                    ref={mobileInputRef}
-                    type="text"
-                    inputMode="text"
-                    autoCapitalize="characters"
-                    autoCorrect="off"
-                    autoComplete="off"
-                    spellCheck={false}
-                    enterKeyHint="next"
-                    aria-label="Crossword input"
-                    className="absolute inset-0 z-0 opacity-0"
-                    onInput={handleMobileInput}
-                    onKeyDown={handleInputKeyDown}
-                  />
+                  {usesTouchKeyboard && (
+                    <input
+                      ref={mobileInputRef}
+                      type="text"
+                      inputMode="text"
+                      autoCapitalize="characters"
+                      autoCorrect="off"
+                      autoComplete="off"
+                      spellCheck={false}
+                      enterKeyHint="next"
+                      aria-label="Crossword input"
+                      className="absolute inset-0 z-0 opacity-0"
+                      onInput={handleMobileInput}
+                    />
+                  )}
                   {puzzle.grid.map((row, rowIndex) => (
                     <div key={rowIndex} className="flex">
                       {row.map((cell, colIndex) => {

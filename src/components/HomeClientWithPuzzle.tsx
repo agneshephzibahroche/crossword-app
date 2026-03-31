@@ -406,6 +406,39 @@ export default function HomeClientWithPuzzle({
                 ))}
               </div>
             </section>
+
+            <section className="mt-5 rounded-[28px] border border-[var(--line)] bg-[var(--card)] p-5 shadow-[0_16px_40px_rgba(18,31,53,0.06)]">
+              <p className="text-xs font-semibold uppercase tracking-[0.28em] text-[var(--muted)]">
+                About
+              </p>
+              <p className="mt-3 font-[family-name:var(--font-editorial)] text-2xl">
+                Agnes Hephzibah Roche
+              </p>
+              <div className="mt-4 flex flex-wrap gap-2 text-sm">
+                <a
+                  href="mailto:agneshephzibahroche@gmail.com"
+                  className="rounded-full bg-[var(--surface)] px-3 py-2 text-[var(--ink)] transition hover:bg-[var(--surface-hover)]"
+                >
+                  Email
+                </a>
+                <a
+                  href="https://github.com/agneshephzibahroche"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="rounded-full bg-[var(--surface)] px-3 py-2 text-[var(--ink)] transition hover:bg-[var(--surface-hover)]"
+                >
+                  GitHub
+                </a>
+                <a
+                  href="https://www.linkedin.com/in/agnes-roche"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="rounded-full bg-[var(--surface)] px-3 py-2 text-[var(--ink)] transition hover:bg-[var(--surface-hover)]"
+                >
+                  LinkedIn
+                </a>
+              </div>
+            </section>
           </aside>
         </div>
       )}
