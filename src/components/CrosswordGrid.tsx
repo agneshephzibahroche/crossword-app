@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { ChangeEvent, KeyboardEvent } from "react";
+import type { FormEvent, KeyboardEvent } from "react";
 import ClueList from "@/components/ClueList";
 import { getCellNumber, getWordCells } from "@/lib/crossword";
 import { Direction, Puzzle } from "@/types/puzzle";
@@ -385,29 +385,40 @@ export default function CrosswordGrid({ puzzle }: Props) {
     return () => window.clearInterval(id);
   }, [showWinModal, storageKey]);
 
-  function handleLetterInput(letter: string) {
-    if (showWinModal || isBlackCell(selectedRow, selectedCol)) {
-      return;
-    }
+  const handleLetterInput = useCallback(
+    (letter: string) => {
+      if (showWinModal || isBlackCell(selectedRow, selectedCol)) {
+        return;
+      }
 
-    setUserGrid((prev) => {
-      const next = prev.map((row) => [...row]);
-      next[selectedRow][selectedCol] = letter;
-      evaluateCorrectWords(next);
-      return next;
-    });
+      setUserGrid((prev) => {
+        const next = prev.map((row) => [...row]);
+        next[selectedRow][selectedCol] = letter;
+        evaluateCorrectWords(next);
+        return next;
+      });
 
-    clearCheckedCell(selectedRow, selectedCol);
-    clearRevealedCell(selectedRow, selectedCol);
+      clearCheckedCell(selectedRow, selectedCol);
+      clearRevealedCell(selectedRow, selectedCol);
 
-    if (direction === "across") {
-      moveSelection(selectedRow, selectedCol + 1);
-    } else {
-      moveSelection(selectedRow + 1, selectedCol);
-    }
-  }
+      if (direction === "across") {
+        moveSelection(selectedRow, selectedCol + 1);
+      } else {
+        moveSelection(selectedRow + 1, selectedCol);
+      }
+    },
+    [
+      direction,
+      evaluateCorrectWords,
+      isBlackCell,
+      moveSelection,
+      selectedCol,
+      selectedRow,
+      showWinModal,
+    ]
+  );
 
-  function handleMobileInputChange(event: ChangeEvent<HTMLInputElement>) {
+  function handleMobileInput(event: FormEvent<HTMLInputElement>) {
     const rawValue = event.currentTarget.value;
     const letter = rawValue.slice(-1).toUpperCase();
     event.currentTarget.value = "";
@@ -417,67 +428,114 @@ export default function CrosswordGrid({ puzzle }: Props) {
     }
   }
 
-  function handleInputKeyDown(event: KeyboardEvent<HTMLInputElement>) {
-    if (showWinModal || isBlackCell(selectedRow, selectedCol)) {
-      return;
-    }
-
-    if (/^[a-zA-Z]$/.test(event.key)) {
-      event.preventDefault();
-      handleLetterInput(event.key.toUpperCase());
-      return;
-    }
-
-    if (event.key === "Backspace") {
-      event.preventDefault();
-
-      if (userGrid[selectedRow][selectedCol]) {
-        setUserGrid((prev) => {
-          const next = prev.map((row) => [...row]);
-          next[selectedRow][selectedCol] = "";
-          evaluateCorrectWords(next);
-          return next;
-        });
-      } else if (direction === "across") {
-        moveSelection(selectedRow, selectedCol - 1);
-      } else {
-        moveSelection(selectedRow - 1, selectedCol);
+  const handleKeyInput = useCallback(
+    (event: { key: string; preventDefault: () => void }) => {
+      if (showWinModal || isBlackCell(selectedRow, selectedCol)) {
+        return;
       }
 
-      clearCheckedCell(selectedRow, selectedCol);
-      clearRevealedCell(selectedRow, selectedCol);
-      return;
-    }
+      if (/^[a-zA-Z]$/.test(event.key)) {
+        event.preventDefault();
+        handleLetterInput(event.key.toUpperCase());
+        return;
+      }
 
-    if (event.key === " " || event.key === "Enter" || event.key === "Tab") {
-      event.preventDefault();
-      setDirection((prev) => (prev === "across" ? "down" : "across"));
-      return;
-    }
+      if (event.key === "Backspace") {
+        event.preventDefault();
 
-    if (event.key === "ArrowRight") {
-      event.preventDefault();
-      moveSelection(selectedRow, selectedCol + 1);
-      return;
-    }
+        if (userGrid[selectedRow][selectedCol]) {
+          setUserGrid((prev) => {
+            const next = prev.map((row) => [...row]);
+            next[selectedRow][selectedCol] = "";
+            evaluateCorrectWords(next);
+            return next;
+          });
+        } else if (direction === "across") {
+          moveSelection(selectedRow, selectedCol - 1);
+        } else {
+          moveSelection(selectedRow - 1, selectedCol);
+        }
 
-    if (event.key === "ArrowLeft") {
-      event.preventDefault();
-      moveSelection(selectedRow, selectedCol - 1);
-      return;
-    }
+        clearCheckedCell(selectedRow, selectedCol);
+        clearRevealedCell(selectedRow, selectedCol);
+        return;
+      }
 
-    if (event.key === "ArrowDown") {
-      event.preventDefault();
-      moveSelection(selectedRow + 1, selectedCol);
-      return;
-    }
+      if (event.key === " " || event.key === "Enter" || event.key === "Tab") {
+        event.preventDefault();
+        setDirection((prev) => (prev === "across" ? "down" : "across"));
+        return;
+      }
 
-    if (event.key === "ArrowUp") {
-      event.preventDefault();
-      moveSelection(selectedRow - 1, selectedCol);
-    }
+      if (event.key === "ArrowRight") {
+        event.preventDefault();
+        moveSelection(selectedRow, selectedCol + 1);
+        return;
+      }
+
+      if (event.key === "ArrowLeft") {
+        event.preventDefault();
+        moveSelection(selectedRow, selectedCol - 1);
+        return;
+      }
+
+      if (event.key === "ArrowDown") {
+        event.preventDefault();
+        moveSelection(selectedRow + 1, selectedCol);
+        return;
+      }
+
+      if (event.key === "ArrowUp") {
+        event.preventDefault();
+        moveSelection(selectedRow - 1, selectedCol);
+      }
+    },
+    [
+      direction,
+      evaluateCorrectWords,
+      handleLetterInput,
+      isBlackCell,
+      moveSelection,
+      selectedCol,
+      selectedRow,
+      showWinModal,
+      userGrid,
+    ]
+  );
+
+  function handleInputKeyDown(event: KeyboardEvent<HTMLInputElement>) {
+    handleKeyInput(event);
   }
+
+  useEffect(() => {
+    function onWindowKeyDown(event: globalThis.KeyboardEvent) {
+      const activeElement = document.activeElement;
+      const isTypingIntoField =
+        activeElement instanceof HTMLInputElement ||
+        activeElement instanceof HTMLTextAreaElement ||
+        activeElement instanceof HTMLSelectElement ||
+        (activeElement instanceof HTMLElement &&
+          activeElement.isContentEditable);
+
+      if (isTypingIntoField && activeElement !== mobileInputRef.current) {
+        return;
+      }
+
+      handleKeyInput(event);
+    }
+
+    window.addEventListener("keydown", onWindowKeyDown);
+    return () => window.removeEventListener("keydown", onWindowKeyDown);
+  }, [
+    handleKeyInput,
+    direction,
+    isBlackCell,
+    moveSelection,
+    selectedCol,
+    selectedRow,
+    showWinModal,
+    userGrid,
+  ]);
 
   const isComplete = useMemo(() => {
     if (puzzle.clues.across.length + puzzle.clues.down.length === 0) {
@@ -676,8 +734,8 @@ export default function CrosswordGrid({ puzzle }: Props) {
                     spellCheck={false}
                     enterKeyHint="next"
                     aria-label="Crossword input"
-                    className="absolute h-px w-px opacity-0 pointer-events-none"
-                    onChange={handleMobileInputChange}
+                    className="absolute inset-0 z-0 opacity-0"
+                    onInput={handleMobileInput}
                     onKeyDown={handleInputKeyDown}
                   />
                   {puzzle.grid.map((row, rowIndex) => (
