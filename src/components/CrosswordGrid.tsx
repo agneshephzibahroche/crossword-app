@@ -682,8 +682,7 @@ export default function CrosswordGrid({ puzzle }: Props) {
                     spellCheck={false}
                     enterKeyHint="next"
                     aria-label="Crossword input"
-                    placeholder="Tap here to type"
-                    className="mb-3 block w-full rounded-2xl border border-[var(--line)] bg-[var(--paper)] px-3 py-2 text-sm text-[var(--ink)] outline-none placeholder:text-[var(--muted)] focus:border-[var(--accent)] sm:absolute sm:mb-0 sm:h-px sm:w-px sm:opacity-0 sm:pointer-events-none"
+                    className="absolute h-px w-px opacity-0 pointer-events-none"
                     onChange={handleMobileInputChange}
                     onKeyDown={handleInputKeyDown}
                   />
