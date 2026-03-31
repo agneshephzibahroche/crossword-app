@@ -383,15 +383,6 @@ export default function HomeClientWithPuzzle({
                     <div className="flex items-center justify-between gap-3">
                       <div>
                         <p className="text-sm font-semibold">{entry.label}</p>
-                        <p
-                          className={`mt-1 text-xs ${
-                            entry.isSelected
-                              ? "text-[color:var(--accent-contrast-soft)]"
-                              : "text-[var(--muted)]"
-                          }`}
-                        >
-                          {entry.title}
-                        </p>
                       </div>
                       <div className="flex items-center gap-2">
                         {renderStatusBadge(
