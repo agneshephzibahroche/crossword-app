@@ -521,6 +521,10 @@ export default function CrosswordGrid({ puzzle }: Props) {
         return;
       }
 
+      if (activeElement === mobileInputRef.current) {
+        return;
+      }
+
       handleKeyInput(event);
     }
 
