@@ -103,12 +103,28 @@ const DICTIONARY_OVERRIDES: Record<string, DictionaryOverride> = {
     clues: ["It tells time", "Wall item with hands, maybe"],
     quality: 8,
   },
+  CRISP: {
+    clues: ["Pleasantly crunchy", "Fresh and snappy"],
+    quality: 9,
+  },
   CLOUD: {
     clues: ["Visible sky vapor", "Something drifting overhead"],
     quality: 8,
   },
+  COAST: {
+    clues: ["Edge of the sea", "Shoreline"],
+    quality: 9,
+  },
+  CORAL: {
+    clues: ["Reef material", "Pinkish-orange hue"],
+    quality: 8,
+  },
   DANCE: {
     clues: ["Move to the music", "Bust a move"],
+    quality: 8,
+  },
+  DRIFT: {
+    clues: ["Move slowly with the current", "Wander without direction"],
     quality: 8,
   },
   DREAM: {
@@ -119,17 +135,99 @@ const DICTIONARY_OVERRIDES: Record<string, DictionaryOverride> = {
     clues: ["Planet we live on", "The third planet from the sun"],
     quality: 8,
   },
+  FLAME: {
+    clues: ["Fire's visible part", "Flickering bit of a candle"],
+    quality: 8,
+  },
+  FLOUR: {
+    clues: ["Baking powder in a bag", "Ingredient in many breads"],
+    quality: 9,
+    tags: ["food"],
+  },
+  FROST: {
+    clues: ["Icy morning coating", "Thin winter glaze"],
+    quality: 8,
+  },
+  FRUIT: {
+    clues: ["Apple or banana", "Sweet produce section item"],
+    quality: 9,
+    tags: ["food"],
+  },
+  GLASS: {
+    clues: ["Window material", "Cup material, often"],
+    quality: 8,
+  },
+  GLOVE: {
+    clues: ["Warm hand covering", "Baseball mitt, for one"],
+    quality: 8,
+  },
+  GROVE: {
+    clues: ["Small stand of trees", "Cluster of orchard trees"],
+    quality: 8,
+  },
   HOUSE: {
     clues: ["Place to live", "Home building"],
     quality: 8,
+  },
+  JUICE: {
+    clues: ["Freshly squeezed drink", "Orange drink, often"],
+    quality: 9,
+    tags: ["food"],
+  },
+  KNIFE: {
+    clues: ["Kitchen cutting tool", "Blade on a dinner table"],
+    quality: 8,
+  },
+  LATTE: {
+    clues: ["Espresso drink with milk", "Foamy cafe order"],
+    quality: 9,
+    tags: ["food"],
   },
   LIGHT: {
     clues: ["Opposite of darkness", "Something a lamp provides"],
     quality: 8,
   },
+  LINEN: {
+    clues: ["Crisp tablecloth fabric", "Sheets and napkins, collectively"],
+    quality: 8,
+  },
+  MAGIC: {
+    clues: ["Stage illusion art", "Wizardly power"],
+    quality: 9,
+  },
+  MAPLE: {
+    clues: ["Tree used for syrup", "Leaf on Canada's flag"],
+    quality: 9,
+  },
+  METAL: {
+    clues: ["Steel or copper", "Material in many tools"],
+    quality: 8,
+  },
+  MODEL: {
+    clues: ["Miniature version", "Fashion runway walker"],
+    quality: 7,
+  },
+  OLIVE: {
+    clues: ["Martini garnish", "Small savory fruit"],
+    quality: 9,
+    tags: ["food"],
+  },
   OCEAN: {
     clues: ["Atlantic or Pacific", "Vast body of salt water"],
     quality: 9,
+  },
+  ONION: {
+    clues: ["Layered bulb in a kitchen", "Vegetable that may make you cry"],
+    quality: 9,
+    tags: ["food"],
+  },
+  OPERA: {
+    clues: ["Grand theatrical music form", "Sung drama"],
+    quality: 8,
+  },
+  PANEL: {
+    clues: ["Section of a wall", "Group of judges or experts"],
+    quality: 7,
   },
   PLANE: {
     clues: ["Flying vehicle", "Jet, for one"],
@@ -143,17 +241,52 @@ const DICTIONARY_OVERRIDES: Record<string, DictionaryOverride> = {
     clues: ["Dish for dinner", "What a meal may be served on"],
     quality: 8,
   },
+  PORCH: {
+    clues: ["Front stoop area", "Covered entrance platform"],
+    quality: 8,
+  },
+  RADIO: {
+    clues: ["Broadcast receiver", "Car stereo source, maybe"],
+    quality: 8,
+  },
+  REACH: {
+    clues: ["Stretch for", "Manage to touch"],
+    quality: 7,
+  },
   RIVER: {
     clues: ["Large natural stream", "Mississippi, for one"],
     quality: 9,
+  },
+  SALAD: {
+    clues: ["Bowl of greens", "Lunch with lettuce, maybe"],
+    quality: 9,
+    tags: ["food"],
+  },
+  SAUCE: {
+    clues: ["Pasta topper", "Something spooned over a dish"],
+    quality: 9,
+    tags: ["food"],
   },
   SHEEP: {
     clues: ["Woolly farm animal", "Animal counted to fall asleep"],
     quality: 8,
   },
+  SHELL: {
+    clues: ["Seashell, for one", "Outer layer of an egg"],
+    quality: 8,
+  },
   SMILE: {
     clues: ["Happy facial expression", "Grin"],
     quality: 9,
+  },
+  SPICE: {
+    clues: ["Seasoning in a jar", "Cinnamon or cumin"],
+    quality: 9,
+    tags: ["food"],
+  },
+  STACK: {
+    clues: ["Pile up neatly", "Tall pile"],
+    quality: 7,
   },
   SOUND: {
     clues: ["What you hear", "Something picked up by the ears"],
@@ -171,6 +304,11 @@ const DICTIONARY_OVERRIDES: Record<string, DictionaryOverride> = {
     clues: ["Furniture with a flat top", "Dining-room surface"],
     quality: 9,
   },
+  TOAST: {
+    clues: ["Browned breakfast bread", "Raise a glass in honor of"],
+    quality: 9,
+    tags: ["food"],
+  },
   THYME: {
     clues: ["Savory kitchen herb", "Herb with tiny leaves"],
     quality: 8,
@@ -183,6 +321,14 @@ const DICTIONARY_OVERRIDES: Record<string, DictionaryOverride> = {
   TRAIN: {
     clues: ["Rail vehicle", "Locomotive and cars"],
     quality: 8,
+  },
+  TREAT: {
+    clues: ["Special little reward", "Something sweet after dinner, maybe"],
+    quality: 8,
+  },
+  URBAN: {
+    clues: ["City-based", "Not rural"],
+    quality: 7,
   },
   WATER: {
     clues: ["Liquid essential for life", "What fills a glass from the tap"],
@@ -427,6 +573,75 @@ const RAW_DICTIONARY: RawDictionaryEntry[] = [
   { word: "WHITE", clue: "Color of fresh snow" },
   { word: "WIDEN", clue: "Make broader" },
   { word: "WORLD", clue: "The Earth and its people" },
+  { word: "BEACH", clue: "Sandy ocean spot" },
+  { word: "BOARD", clue: "Flat piece of wood" },
+  { word: "BRINE", clue: "Salty preserving liquid" },
+  { word: "BROTH", clue: "Soup base" },
+  { word: "BUNCH", clue: "Cluster of things" },
+  { word: "BURST", clue: "Sudden pop of energy" },
+  { word: "CABLE", clue: "Thick wire" },
+  { word: "CANDY", clue: "Sweet treat" },
+  { word: "CEDAR", clue: "Aromatic wood tree" },
+  { word: "CLOVE", clue: "Aromatic spice bud" },
+  { word: "COAST", clue: "Shoreline" },
+  { word: "CORAL", clue: "Reef builder" },
+  { word: "CRISP", clue: "Pleasantly crunchy" },
+  { word: "DAISY", clue: "Simple white-petaled flower" },
+  { word: "DROPS", clue: "Falls in little bits" },
+  { word: "DRIFT", clue: "Float slowly" },
+  { word: "FIELD", clue: "Wide grassy area" },
+  { word: "FLAME", clue: "Candle tip, often" },
+  { word: "FLOUR", clue: "Baking pantry staple" },
+  { word: "FROST", clue: "Icy window coating" },
+  { word: "FRUIT", clue: "Apple or pear" },
+  { word: "GLASS", clue: "Window material" },
+  { word: "GLOVE", clue: "Hand warmer" },
+  { word: "GRAPE", clue: "Vineyard fruit" },
+  { word: "GROVE", clue: "Small group of trees" },
+  { word: "HONEY", clue: "Sweet syrup from bees" },
+  { word: "JUICE", clue: "Freshly squeezed drink" },
+  { word: "KNIFE", clue: "Sharp kitchen tool" },
+  { word: "LATTE", clue: "Milky espresso drink" },
+  { word: "LEMON", clue: "Sour yellow citrus" },
+  { word: "LINEN", clue: "Cloth for sheets or napkins" },
+  { word: "MAGIC", clue: "Wizardly wonder" },
+  { word: "MANGO", clue: "Tropical orange fruit" },
+  { word: "MAPLE", clue: "Tree tied to syrup" },
+  { word: "MELON", clue: "Big juicy summer fruit" },
+  { word: "METAL", clue: "Steel or iron" },
+  { word: "MODEL", clue: "Miniature version" },
+  { word: "MUSIC", clue: "Organized sound" },
+  { word: "OLIVE", clue: "Savory martini garnish" },
+  { word: "ONION", clue: "Vegetable with layers" },
+  { word: "OPERA", clue: "Sung stage drama" },
+  { word: "PANEL", clue: "Flat section or group of judges" },
+  { word: "PASTA", clue: "Noodles for dinner" },
+  { word: "PEACH", clue: "Fuzzy stone fruit" },
+  { word: "PEARL", clue: "Gem from an oyster" },
+  { word: "PETAL", clue: "Part of a flower" },
+  { word: "PIZZA", clue: "Cheesy pie slice source" },
+  { word: "PORCH", clue: "Front stoop" },
+  { word: "RADIO", clue: "Broadcast receiver" },
+  { word: "REACH", clue: "Stretch toward" },
+  { word: "ROAST", clue: "Cook in the oven" },
+  { word: "SALAD", clue: "Bowl of greens" },
+  { word: "SAUCE", clue: "Pasta topper" },
+  { word: "SCALE", clue: "Bathroom weight checker" },
+  { word: "SCARF", clue: "Winter neck wrap" },
+  { word: "SHELL", clue: "Outer covering" },
+  { word: "SHORE", clue: "Land by the water" },
+  { word: "SPICE", clue: "Seasoning in a rack" },
+  { word: "STACK", clue: "Pile up" },
+  { word: "STEAM", clue: "Mist from a hot mug" },
+  { word: "SUNNY", clue: "Bright and cheerful" },
+  { word: "SWEET", clue: "Sugary" },
+  { word: "TOAST", clue: "Browned breakfast bread" },
+  { word: "TREAT", clue: "Little reward" },
+  { word: "TULIP", clue: "Cup-shaped spring flower" },
+  { word: "URBAN", clue: "City-based" },
+  { word: "WAVES", clue: "Ocean rollers" },
+  { word: "WHEAT", clue: "Grain used in flour" },
+  { word: "WOODS", clue: "Forest area" },
 ];
 
 function hashString(value: string) {
