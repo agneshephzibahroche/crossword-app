@@ -409,9 +409,9 @@ export default function HomeClientWithPuzzle({
 
             <section className="mt-5 rounded-[28px] border border-[var(--line)] bg-[var(--card)] p-5 shadow-[0_16px_40px_rgba(18,31,53,0.06)]">
               <p className="text-xs font-semibold uppercase tracking-[0.28em] text-[var(--muted)]">
-                About
+                Built by:
               </p>
-              <p className="mt-3 font-[family-name:var(--font-editorial)] text-2xl">
+              <p className="mt-3 font-[family-name:var(--font-editorial)] text-xl">
                 Agnes Hephzibah Roche
               </p>
               <div className="mt-4 flex flex-wrap gap-2 text-sm">
