@@ -8,6 +8,7 @@ type Props = {
   activeRow: number;
   activeCol: number;
   completedWords: Set<string>;
+  revealedWords: Set<string>;
   onSelectClue: (row: number, col: number, direction: Direction) => void;
 };
 
@@ -17,6 +18,7 @@ export default function ClueList({
   activeRow,
   activeCol,
   completedWords,
+  revealedWords,
   onSelectClue,
 }: Props) {
   function wordKey(row: number, col: number, direction: Direction) {
@@ -44,6 +46,9 @@ export default function ClueList({
             const isComplete = completedWords.has(
               wordKey(clue.row, clue.col, "across")
             );
+            const isRevealed = revealedWords.has(
+              wordKey(clue.row, clue.col, "across")
+            );
 
             return (
               <li key={`across-${clue.number}`}>
@@ -63,15 +68,17 @@ export default function ClueList({
                       </span>
                       {clue.clue}
                     </span>
-                    {isComplete && (
+                    {(isComplete || isRevealed) && (
                       <span
                         className={`rounded-full px-2 py-1 text-[0.65rem] font-semibold uppercase tracking-[0.18em] ${
                           isActive
                             ? "bg-white/18 text-[var(--accent-contrast)]"
-                            : "bg-[var(--success-soft)] text-[var(--success)]"
+                            : isRevealed
+                              ? "bg-[var(--card-muted)] text-[var(--muted)]"
+                              : "bg-[var(--success-soft)] text-[var(--success)]"
                         }`}
                       >
-                        Solved
+                        {isRevealed ? "Revealed" : "Solved"}
                       </span>
                     )}
                   </div>
@@ -101,6 +108,9 @@ export default function ClueList({
             const isComplete = completedWords.has(
               wordKey(clue.row, clue.col, "down")
             );
+            const isRevealed = revealedWords.has(
+              wordKey(clue.row, clue.col, "down")
+            );
 
             return (
               <li key={`down-${clue.number}`}>
@@ -120,15 +130,17 @@ export default function ClueList({
                       </span>
                       {clue.clue}
                     </span>
-                    {isComplete && (
+                    {(isComplete || isRevealed) && (
                       <span
                         className={`rounded-full px-2 py-1 text-[0.65rem] font-semibold uppercase tracking-[0.18em] ${
                           isActive
                             ? "bg-white/18 text-[var(--accent-contrast)]"
-                            : "bg-[var(--success-soft)] text-[var(--success)]"
+                            : isRevealed
+                              ? "bg-[var(--card-muted)] text-[var(--muted)]"
+                              : "bg-[var(--success-soft)] text-[var(--success)]"
                         }`}
                       >
-                        Solved
+                        {isRevealed ? "Revealed" : "Solved"}
                       </span>
                     )}
                   </div>
