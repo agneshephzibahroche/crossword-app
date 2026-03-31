@@ -83,7 +83,7 @@ export default function HomeClient() {
           </div>
         </header>
 
-        <CrosswordGrid puzzle={samplePuzzle} theme={theme} />
+        <CrosswordGrid puzzle={samplePuzzle} />
       </div>
     </main>
   );

@@ -1,11 +1,19 @@
 import { Puzzle } from "@/types/puzzle";
 
 export const samplePuzzle: Puzzle = {
+  id: "sample-puzzle",
   date: "2026-03-22",
   title: "mini crossword",
   rows: 5,
   cols: 5,
   grid: [
+    ["C", "A", "T", "#", "S"],
+    ["A", "#", "R", "A", "N"],
+    ["R", "A", "I", "N", "Y"],
+    ["#", "T", "E", "A", "#"],
+    ["S", "U", "N", "#", "Y"],
+  ],
+  solution: [
     ["C", "A", "T", "#", "S"],
     ["A", "#", "R", "A", "N"],
     ["R", "A", "I", "N", "Y"],

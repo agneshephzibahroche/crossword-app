@@ -1,5 +1,90 @@
 @import "tailwindcss";
 
+:root {
+  --paper: #fff4df;
+  --paper-deep: #ffe3d1;
+  --card: rgba(255, 250, 242, 0.9);
+  --card-muted: #ffe7cf;
+  --surface: #fffdf8;
+  --surface-muted: rgba(255, 247, 236, 0.9);
+  --surface-hover: #ffe3ef;
+  --ink: #24163d;
+  --ink-soft: #41295e;
+  --muted: #7a5d78;
+  --line: rgba(84, 43, 98, 0.14);
+  --line-strong: rgba(84, 43, 98, 0.25);
+  --accent: #ff6b6b;
+  --accent-strong: #e84d8a;
+  --accent-soft: #ffd7df;
+  --accent-contrast: #fffafc;
+  --accent-contrast-soft: rgba(255, 250, 252, 0.84);
+  --success: #0f9b8e;
+  --success-soft: #c8f7ef;
+  --danger: #f05d5e;
+  --danger-soft: #ffd9d2;
+  --glow-1: rgba(255, 192, 92, 0.42);
+  --glow-2: rgba(255, 113, 154, 0.28);
+  --overlay: rgba(15, 23, 42, 0.38);
+  --cell-bg: #fff9f2;
+  --cell-text: #24163d;
+  --black-cell: #3b2148;
+  --font-editorial: "Iowan Old Style", "Palatino Linotype", "Book Antiqua",
+    "Libre Baskerville", Georgia, serif;
+}
+
+[data-theme="dark"] {
+  --paper: #0f1025;
+  --paper-deep: #18143a;
+  --card: rgba(26, 22, 58, 0.9);
+  --card-muted: #211d49;
+  --surface: #241f52;
+  --surface-muted: rgba(36, 31, 82, 0.9);
+  --surface-hover: #31286b;
+  --ink: #f8f4ff;
+  --ink-soft: #d8d0ff;
+  --muted: #b8aee7;
+  --line: rgba(215, 198, 255, 0.15);
+  --line-strong: rgba(215, 198, 255, 0.26);
+  --accent: #ff8a5b;
+  --accent-strong: #ff5db1;
+  --accent-soft: rgba(255, 120, 160, 0.2);
+  --accent-contrast: #180f2d;
+  --accent-contrast-soft: rgba(24, 15, 45, 0.82);
+  --success: #33d1b6;
+  --success-soft: rgba(51, 209, 182, 0.18);
+  --danger: #ff7a7a;
+  --danger-soft: rgba(255, 122, 122, 0.18);
+  --glow-1: rgba(70, 190, 255, 0.22);
+  --glow-2: rgba(255, 93, 177, 0.24);
+  --overlay: rgba(3, 7, 18, 0.62);
+  --cell-bg: #2d2760;
+  --cell-text: #fff8ff;
+  --black-cell: #090713;
+  --button-secondary-bg: #31286b;
+  --button-secondary-hover: #3c3182;
+  --button-secondary-border: rgba(255, 214, 235, 0.34);
+  --button-secondary-text: #fff8ff;
+  --button-primary-bg: #ff8a5b;
+  --button-primary-hover: #ff5db1;
+  --button-primary-text: #180f2d;
+  --button-shadow: 0 12px 26px rgba(4, 6, 18, 0.34);
+  --button-shadow-pressed: inset 0 2px 4px rgba(0, 0, 0, 0.28);
+  --button-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+:root {
+  --button-secondary-bg: var(--surface);
+  --button-secondary-hover: var(--card-muted);
+  --button-secondary-border: var(--line-strong);
+  --button-secondary-text: var(--ink);
+  --button-primary-bg: var(--ink);
+  --button-primary-hover: var(--ink-soft);
+  --button-primary-text: #ffffff;
+  --button-shadow: 0 10px 22px rgba(36, 22, 61, 0.12);
+  --button-shadow-pressed: inset 0 2px 4px rgba(0, 0, 0, 0.12);
+  --button-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.5);
+}
+
 html,
 body {
   min-height: 100%;
@@ -7,4 +92,21 @@ body {
 
 body {
   margin: 0;
+  color: var(--ink);
+  background: linear-gradient(180deg, #fff7ed 0%, #ffe8dd 100%);
+  font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+button,
+a {
+  -webkit-tap-highlight-color: transparent;
+}
+
+::selection {
+  color: white;
+  background: var(--accent);
 }

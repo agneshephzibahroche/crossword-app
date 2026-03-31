@@ -1,15 +1,14 @@
 "use client";
 
 import { Direction, Puzzle } from "@/types/puzzle";
-import { ThemeMode } from "@/types/theme";
 
 type Props = {
   puzzle: Puzzle;
   activeDirection: Direction;
   activeRow: number;
   activeCol: number;
+  completedWords: Set<string>;
   onSelectClue: (row: number, col: number, direction: Direction) => void;
-  theme: ThemeMode;
 };
 
 export default function ClueList({
@@ -17,27 +16,21 @@ export default function ClueList({
   activeDirection,
   activeRow,
   activeCol,
+  completedWords,
   onSelectClue,
-  theme,
 }: Props) {
-  const isDark = theme === "dark";
+  function wordKey(row: number, col: number, direction: Direction) {
+    return `${row}-${col}-${direction}`;
+  }
 
   return (
     <div className="grid gap-6 lg:grid-cols-2">
-      <section
-        className={`rounded-3xl border p-5 sm:p-6 ${
-          isDark ? "border-pink-900 bg-[#2a1f24]" : "border-pink-200 bg-pink-50"
-        }`}
-      >
+      <section className="rounded-[28px] border border-[var(--line)] bg-[var(--card)] p-5 shadow-[0_16px_40px_rgba(18,31,53,0.05)] sm:p-6">
         <div className="mb-4 flex items-center justify-between">
-          <h2 className={`text-xl font-black ${isDark ? "text-pink-300" : "text-pink-700"}`}>
+          <h2 className="font-[family-name:var(--font-editorial)] text-2xl text-[var(--ink)]">
             Across
           </h2>
-          <span
-            className={`rounded-full px-3 py-1 text-xs font-bold ${
-              isDark ? "bg-pink-950 text-pink-300" : "bg-pink-100 text-pink-700"
-            }`}
-          >
+          <span className="rounded-full bg-[var(--accent-soft)] px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-[var(--accent-strong)]">
             {puzzle.clues.across.length} clues
           </span>
         </div>
@@ -48,26 +41,40 @@ export default function ClueList({
               activeDirection === "across" &&
               activeRow === clue.row &&
               activeCol === clue.col;
+            const isComplete = completedWords.has(
+              wordKey(clue.row, clue.col, "across")
+            );
 
             return (
               <li key={`across-${clue.number}`}>
                 <button
                   type="button"
                   onClick={() => onSelectClue(clue.row, clue.col, "across")}
-                  className={`w-full rounded-2xl px-4 py-3 text-left text-sm transition sm:text-base ${
+                  className={`w-full rounded-2xl border px-4 py-3 text-left text-sm transition sm:text-base ${
                     isActive
-                      ? isDark
-                        ? "bg-pink-700 text-white shadow-sm"
-                        : "bg-pink-400 text-white shadow-sm"
-                      : isDark
-                        ? "text-white hover:bg-pink-900/40"
-                        : "text-black hover:bg-pink-100"
+                      ? "border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-contrast)] shadow-[0_10px_24px_rgba(163,88,40,0.18)]"
+                      : "border-transparent bg-[var(--card-muted)] text-[var(--ink)] hover:border-[var(--line-strong)] hover:bg-[var(--surface)]"
                   }`}
                 >
-                  <span className="mr-2 inline-block min-w-6 font-black">
-                    {clue.number}.
-                  </span>
-                  {clue.clue}
+                  <div className="flex items-start justify-between gap-3">
+                    <span className="min-w-0">
+                      <span className="mr-2 inline-block min-w-6 font-black">
+                        {clue.number}.
+                      </span>
+                      {clue.clue}
+                    </span>
+                    {isComplete && (
+                      <span
+                        className={`rounded-full px-2 py-1 text-[0.65rem] font-semibold uppercase tracking-[0.18em] ${
+                          isActive
+                            ? "bg-white/18 text-[var(--accent-contrast)]"
+                            : "bg-[var(--success-soft)] text-[var(--success)]"
+                        }`}
+                      >
+                        Solved
+                      </span>
+                    )}
+                  </div>
                 </button>
               </li>
             );
@@ -75,20 +82,12 @@ export default function ClueList({
         </ul>
       </section>
 
-      <section
-        className={`rounded-3xl border p-5 sm:p-6 ${
-          isDark ? "border-blue-900 bg-[#1f2937]" : "border-blue-200 bg-blue-50"
-        }`}
-      >
+      <section className="rounded-[28px] border border-[var(--line)] bg-[var(--card)] p-5 shadow-[0_16px_40px_rgba(18,31,53,0.05)] sm:p-6">
         <div className="mb-4 flex items-center justify-between">
-          <h2 className={`text-xl font-black ${isDark ? "text-blue-300" : "text-blue-700"}`}>
+          <h2 className="font-[family-name:var(--font-editorial)] text-2xl text-[var(--ink)]">
             Down
           </h2>
-          <span
-            className={`rounded-full px-3 py-1 text-xs font-bold ${
-              isDark ? "bg-blue-950 text-blue-300" : "bg-blue-100 text-blue-700"
-            }`}
-          >
+          <span className="rounded-full bg-[var(--accent-soft)] px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-[var(--accent-strong)]">
             {puzzle.clues.down.length} clues
           </span>
         </div>
@@ -99,26 +98,40 @@ export default function ClueList({
               activeDirection === "down" &&
               activeRow === clue.row &&
               activeCol === clue.col;
+            const isComplete = completedWords.has(
+              wordKey(clue.row, clue.col, "down")
+            );
 
             return (
               <li key={`down-${clue.number}`}>
                 <button
                   type="button"
                   onClick={() => onSelectClue(clue.row, clue.col, "down")}
-                  className={`w-full rounded-2xl px-4 py-3 text-left text-sm transition sm:text-base ${
+                  className={`w-full rounded-2xl border px-4 py-3 text-left text-sm transition sm:text-base ${
                     isActive
-                      ? isDark
-                        ? "bg-blue-700 text-white shadow-sm"
-                        : "bg-blue-400 text-white shadow-sm"
-                      : isDark
-                        ? "text-white hover:bg-blue-900/40"
-                        : "text-black hover:bg-blue-100"
+                      ? "border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-contrast)] shadow-[0_10px_24px_rgba(163,88,40,0.18)]"
+                      : "border-transparent bg-[var(--card-muted)] text-[var(--ink)] hover:border-[var(--line-strong)] hover:bg-[var(--surface)]"
                   }`}
                 >
-                  <span className="mr-2 inline-block min-w-6 font-black">
-                    {clue.number}.
-                  </span>
-                  {clue.clue}
+                  <div className="flex items-start justify-between gap-3">
+                    <span className="min-w-0">
+                      <span className="mr-2 inline-block min-w-6 font-black">
+                        {clue.number}.
+                      </span>
+                      {clue.clue}
+                    </span>
+                    {isComplete && (
+                      <span
+                        className={`rounded-full px-2 py-1 text-[0.65rem] font-semibold uppercase tracking-[0.18em] ${
+                          isActive
+                            ? "bg-white/18 text-[var(--accent-contrast)]"
+                            : "bg-[var(--success-soft)] text-[var(--success)]"
+                        }`}
+                      >
+                        Solved
+                      </span>
+                    )}
+                  </div>
                 </button>
               </li>
             );

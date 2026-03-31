@@ -1,26 +1,22 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { Direction, Puzzle } from "@/types/puzzle";
-import { ThemeMode } from "@/types/theme";
-import { getCellNumber, getWordCells } from "@/lib/crossword";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import ClueList from "@/components/ClueList";
+import { getCellNumber, getWordCells } from "@/lib/crossword";
+import { Direction, Puzzle } from "@/types/puzzle";
 
 type Props = {
   puzzle: Puzzle;
-  theme: ThemeMode;
 };
 
 type CrosswordStats = {
-  solvedCount: number;
+  solvedDates: string[];
   bestTimeSeconds: number | null;
 };
 
-const STATS_KEY = "crossword-stats";
+const STATS_KEY = "crossword-daily-stats-v1";
 
-export default function CrosswordGrid({ puzzle, theme }: Props) {
-  const isDark = theme === "dark";
-
+export default function CrosswordGrid({ puzzle }: Props) {
   const [selectedRow, setSelectedRow] = useState(0);
   const [selectedCol, setSelectedCol] = useState(0);
   const [direction, setDirection] = useState<Direction>("across");
@@ -31,31 +27,38 @@ export default function CrosswordGrid({ puzzle, theme }: Props) {
   const [showWinModal, setShowWinModal] = useState(false);
   const [hasShownWin, setHasShownWin] = useState(false);
   const [stats, setStats] = useState<CrosswordStats>({
-    solvedCount: 0,
+    solvedDates: [],
     bestTimeSeconds: null,
   });
+  const [shareState, setShareState] = useState<"idle" | "copied">("idle");
 
-  const storageKey = `crossword-progress-${puzzle.id}`;
-
+  const storageKey = `daily-crossword-progress-${puzzle.id}`;
   const emptyGrid = useMemo(
-    () =>
-      puzzle.grid.map((row) =>
-        row.map((cell) => (cell === "#" ? "#" : ""))
-      ),
+    () => puzzle.grid.map((row) => row.map((cell) => (cell === "#" ? "#" : ""))),
     [puzzle.grid]
   );
-
   const [userGrid, setUserGrid] = useState<string[][]>(emptyGrid);
+
   useEffect(() => {
     setUserGrid(emptyGrid);
   }, [emptyGrid]);
 
   useEffect(() => {
     const raw = localStorage.getItem(STATS_KEY);
-    if (raw) {
-      try {
-        setStats(JSON.parse(raw));
-      } catch {}
+
+    if (!raw) return;
+
+    try {
+      const parsed = JSON.parse(raw) as CrosswordStats;
+      setStats({
+        solvedDates: Array.isArray(parsed.solvedDates) ? parsed.solvedDates : [],
+        bestTimeSeconds:
+          typeof parsed.bestTimeSeconds === "number"
+            ? parsed.bestTimeSeconds
+            : null,
+      });
+    } catch {
+      setStats({ solvedDates: [], bestTimeSeconds: null });
     }
   }, []);
 
@@ -63,36 +66,37 @@ export default function CrosswordGrid({ puzzle, theme }: Props) {
     return `${row}-${col}-${wordDirection}`;
   }
 
-  function evaluateCorrectWords(gridToCheck: string[][]) {
-    const next = new Set<string>();
+  const evaluateCorrectWords = useCallback(
+    (gridToCheck: string[][]) => {
+      const next = new Set<string>();
+      const allClues = [
+        ...puzzle.clues.across.map((clue) => ({
+          ...clue,
+          direction: "across" as const,
+        })),
+        ...puzzle.clues.down.map((clue) => ({
+          ...clue,
+          direction: "down" as const,
+        })),
+      ];
 
-    const allClues = [
-      ...puzzle.clues.across.map((clue) => ({
-        ...clue,
-        direction: "across" as const,
-      })),
-      ...puzzle.clues.down.map((clue) => ({
-        ...clue,
-        direction: "down" as const,
-      })),
-    ];
+      for (const clue of allClues) {
+        const cells = getWordCells(puzzle, clue.row, clue.col, clue.direction);
+        const isWordCorrect = cells.every(
+          (cell) =>
+            gridToCheck[cell.row][cell.col] ===
+            puzzle.solution[cell.row][cell.col]
+        );
 
-    for (const clue of allClues) {
-      const cells = getWordCells(puzzle, clue.row, clue.col, clue.direction);
-
-      const isWordCorrect = cells.every(
-        (cell) =>
-          gridToCheck[cell.row][cell.col] ===
-          puzzle.solution[cell.row][cell.col]
-      );
-
-      if (isWordCorrect) {
-        next.add(getWordKey(clue.row, clue.col, clue.direction));
+        if (isWordCorrect) {
+          next.add(getWordKey(clue.row, clue.col, clue.direction));
+        }
       }
-    }
 
-    setCorrectWords(next);
-  }
+      setCorrectWords(next);
+    },
+    [puzzle]
+  );
 
   useEffect(() => {
     const saved = localStorage.getItem(storageKey);
@@ -126,45 +130,49 @@ export default function CrosswordGrid({ puzzle, theme }: Props) {
 
     setWrongCells(new Set());
     setCorrectCells(new Set());
-    setCorrectWords(new Set());
     setElapsedSeconds(0);
     setShowWinModal(false);
     setHasShownWin(false);
     setSelectedRow(0);
     setSelectedCol(0);
     setDirection("across");
-  }, [storageKey, emptyGrid, puzzle.rows, puzzle.cols]);
+  }, [emptyGrid, evaluateCorrectWords, puzzle.cols, puzzle.rows, storageKey]);
 
   useEffect(() => {
     localStorage.setItem(storageKey, JSON.stringify(userGrid));
   }, [storageKey, userGrid]);
 
-  function isBlackCell(row: number, col: number) {
-    return puzzle.grid[row][col] === "#";
-  }
+  const isBlackCell = useCallback(
+    (row: number, col: number) => puzzle.grid[row][col] === "#",
+    [puzzle.grid]
+  );
 
-  function moveSelection(row: number, col: number) {
-    if (
-      row >= 0 &&
-      row < puzzle.rows &&
-      col >= 0 &&
-      col < puzzle.cols &&
-      !isBlackCell(row, col)
-    ) {
-      setSelectedRow(row);
-      setSelectedCol(col);
-    }
-  }
+  const moveSelection = useCallback(
+    (row: number, col: number) => {
+      if (
+        row >= 0 &&
+        row < puzzle.rows &&
+        col >= 0 &&
+        col < puzzle.cols &&
+        !isBlackCell(row, col)
+      ) {
+        setSelectedRow(row);
+        setSelectedCol(col);
+      }
+    },
+    [isBlackCell, puzzle.cols, puzzle.rows]
+  );
 
   function handleCellClick(row: number, col: number) {
     if (isBlackCell(row, col)) return;
 
     if (selectedRow === row && selectedCol === col) {
       setDirection((prev) => (prev === "across" ? "down" : "across"));
-    } else {
-      setSelectedRow(row);
-      setSelectedCol(col);
+      return;
     }
+
+    setSelectedRow(row);
+    setSelectedCol(col);
   }
 
   function handleSelectClue(
@@ -197,19 +205,17 @@ export default function CrosswordGrid({ puzzle, theme }: Props) {
     const wrong = new Set<string>();
     const correct = new Set<string>();
 
-    for (let r = 0; r < puzzle.rows; r++) {
-      for (let c = 0; c < puzzle.cols; c++) {
-        if (puzzle.grid[r][c] === "#") continue;
+    for (let row = 0; row < puzzle.rows; row += 1) {
+      for (let col = 0; col < puzzle.cols; col += 1) {
+        if (puzzle.grid[row][col] === "#") continue;
 
-        const typed = userGrid[r][c];
-        const answer = puzzle.solution[r][c];
-
+        const typed = userGrid[row][col];
         if (typed === "") continue;
 
-        if (typed === answer) {
-          correct.add(`${r}-${c}`);
+        if (typed === puzzle.solution[row][col]) {
+          correct.add(`${row}-${col}`);
         } else {
-          wrong.add(`${r}-${c}`);
+          wrong.add(`${row}-${col}`);
         }
       }
     }
@@ -218,11 +224,15 @@ export default function CrosswordGrid({ puzzle, theme }: Props) {
     setCorrectCells(correct);
   }
 
-  function handleResetPuzzle() {
+  function clearGrid() {
     setUserGrid(emptyGrid);
+    evaluateCorrectWords(emptyGrid);
     setWrongCells(new Set());
     setCorrectCells(new Set());
-    setCorrectWords(new Set());
+  }
+
+  function handleResetPuzzle() {
+    clearGrid();
     setElapsedSeconds(0);
     setShowWinModal(false);
     setHasShownWin(false);
@@ -261,13 +271,45 @@ export default function CrosswordGrid({ puzzle, theme }: Props) {
     });
   }
 
-  const activeWordCells = useMemo(() => {
-    return getWordCells(puzzle, selectedRow, selectedCol, direction);
-  }, [puzzle, selectedRow, selectedCol, direction]);
+  const activeWordCells = useMemo(
+    () => getWordCells(puzzle, selectedRow, selectedCol, direction),
+    [direction, puzzle, selectedCol, selectedRow]
+  );
 
-  const activeWordSet = useMemo(() => {
-    return new Set(activeWordCells.map((cell) => `${cell.row}-${cell.col}`));
-  }, [activeWordCells]);
+  const activeWordSet = useMemo(
+    () => new Set(activeWordCells.map((cell) => `${cell.row}-${cell.col}`)),
+    [activeWordCells]
+  );
+
+  const completedCellSet = useMemo(() => {
+    const next = new Set<string>();
+    const allClues = [
+      ...puzzle.clues.across.map((clue) => ({
+        row: clue.row,
+        col: clue.col,
+        direction: "across" as const,
+      })),
+      ...puzzle.clues.down.map((clue) => ({
+        row: clue.row,
+        col: clue.col,
+        direction: "down" as const,
+      })),
+    ];
+
+    for (const clue of allClues) {
+      const key = getWordKey(clue.row, clue.col, clue.direction);
+      if (!correctWords.has(key)) {
+        continue;
+      }
+
+      const cells = getWordCells(puzzle, clue.row, clue.col, clue.direction);
+      for (const cell of cells) {
+        next.add(`${cell.row}-${cell.col}`);
+      }
+    }
+
+    return next;
+  }, [correctWords, puzzle]);
 
   useEffect(() => {
     if (showWinModal) return;
@@ -280,12 +322,13 @@ export default function CrosswordGrid({ puzzle, theme }: Props) {
   }, [showWinModal, storageKey]);
 
   useEffect(() => {
-    function onKeyDown(e: KeyboardEvent) {
+    function onKeyDown(event: KeyboardEvent) {
       if (showWinModal) return;
       if (isBlackCell(selectedRow, selectedCol)) return;
 
-      if (/^[a-zA-Z]$/.test(e.key)) {
-        const letter = e.key.toUpperCase();
+      if (/^[a-zA-Z]$/.test(event.key)) {
+        event.preventDefault();
+        const letter = event.key.toUpperCase();
 
         setUserGrid((prev) => {
           const next = prev.map((row) => [...row]);
@@ -304,71 +347,94 @@ export default function CrosswordGrid({ puzzle, theme }: Props) {
         return;
       }
 
-      if (e.key === "Backspace") {
-        e.preventDefault();
+      if (event.key === "Backspace") {
+        event.preventDefault();
 
-        setUserGrid((prev) => {
-          const next = prev.map((row) => [...row]);
-          next[selectedRow][selectedCol] = "";
-          evaluateCorrectWords(next);
-          return next;
-        });
+        if (userGrid[selectedRow][selectedCol]) {
+          setUserGrid((prev) => {
+            const next = prev.map((row) => [...row]);
+            next[selectedRow][selectedCol] = "";
+            evaluateCorrectWords(next);
+            return next;
+          });
+        } else if (direction === "across") {
+          moveSelection(selectedRow, selectedCol - 1);
+        } else {
+          moveSelection(selectedRow - 1, selectedCol);
+        }
 
         clearCheckedCell(selectedRow, selectedCol);
         return;
       }
 
-      if (e.key === "ArrowRight") {
-        e.preventDefault();
+      if (event.key === " " || event.key === "Enter") {
+        event.preventDefault();
+        setDirection((prev) => (prev === "across" ? "down" : "across"));
+        return;
+      }
+
+      if (event.key === "ArrowRight") {
+        event.preventDefault();
         moveSelection(selectedRow, selectedCol + 1);
         return;
       }
 
-      if (e.key === "ArrowLeft") {
-        e.preventDefault();
+      if (event.key === "ArrowLeft") {
+        event.preventDefault();
         moveSelection(selectedRow, selectedCol - 1);
         return;
       }
 
-      if (e.key === "ArrowDown") {
-        e.preventDefault();
+      if (event.key === "ArrowDown") {
+        event.preventDefault();
         moveSelection(selectedRow + 1, selectedCol);
         return;
       }
 
-      if (e.key === "ArrowUp") {
-        e.preventDefault();
+      if (event.key === "ArrowUp") {
+        event.preventDefault();
         moveSelection(selectedRow - 1, selectedCol);
         return;
       }
 
-      if (e.key === "Tab") {
-        e.preventDefault();
+      if (event.key === "Tab") {
+        event.preventDefault();
         setDirection((prev) => (prev === "across" ? "down" : "across"));
       }
     }
 
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [selectedRow, selectedCol, direction, puzzle.rows, puzzle.cols, showWinModal]);
+  }, [
+    evaluateCorrectWords,
+    direction,
+    isBlackCell,
+    moveSelection,
+    puzzle.cols,
+    puzzle.rows,
+    selectedCol,
+    selectedRow,
+    showWinModal,
+    userGrid,
+  ]);
 
   const isComplete = useMemo(() => {
     if (puzzle.clues.across.length + puzzle.clues.down.length === 0) {
       return false;
     }
 
-    for (let r = 0; r < puzzle.rows; r++) {
-      for (let c = 0; c < puzzle.cols; c++) {
-        if (puzzle.grid[r][c] === "#") continue;
+    for (let row = 0; row < puzzle.rows; row += 1) {
+      for (let col = 0; col < puzzle.cols; col += 1) {
+        if (puzzle.grid[row][col] === "#") continue;
 
-        if (userGrid[r][c] !== puzzle.solution[r][c]) {
+        if (userGrid[row][col] !== puzzle.solution[row][col]) {
           return false;
         }
       }
     }
 
     return true;
-  }, [userGrid, puzzle]);
+  }, [puzzle, userGrid]);
 
   useEffect(() => {
     if (!isComplete || hasShownWin) return;
@@ -376,8 +442,12 @@ export default function CrosswordGrid({ puzzle, theme }: Props) {
     setShowWinModal(true);
     setHasShownWin(true);
 
+    const solvedDates = stats.solvedDates.includes(puzzle.date)
+      ? stats.solvedDates
+      : [...stats.solvedDates, puzzle.date].sort();
+
     const nextStats: CrosswordStats = {
-      solvedCount: stats.solvedCount + 1,
+      solvedDates,
       bestTimeSeconds:
         stats.bestTimeSeconds === null
           ? elapsedSeconds
@@ -386,7 +456,7 @@ export default function CrosswordGrid({ puzzle, theme }: Props) {
 
     setStats(nextStats);
     localStorage.setItem(STATS_KEY, JSON.stringify(nextStats));
-  }, [isComplete, hasShownWin, elapsedSeconds, stats]);
+  }, [elapsedSeconds, hasShownWin, isComplete, puzzle.date, stats]);
 
   function formatTime(totalSeconds: number) {
     const mins = Math.floor(totalSeconds / 60);
@@ -394,198 +464,262 @@ export default function CrosswordGrid({ puzzle, theme }: Props) {
     return `${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
   }
 
+  async function handleShareResult() {
+    const text = `Letterbeat ${puzzle.date} solved in ${formatTime(
+      elapsedSeconds
+    )} • ${streak} day streak`;
+
+    try {
+      await navigator.clipboard.writeText(text);
+      setShareState("copied");
+      window.setTimeout(() => setShareState("idle"), 1800);
+    } catch {
+      setShareState("idle");
+    }
+  }
+
+  function shiftDate(dateKey: string, amount: number) {
+    const date = new Date(`${dateKey}T00:00:00Z`);
+    date.setUTCDate(date.getUTCDate() + amount);
+    return date.toISOString().slice(0, 10);
+  }
+
+  const activeClue = useMemo(() => {
+    const clueList =
+      direction === "across" ? puzzle.clues.across : puzzle.clues.down;
+
+    return (
+      clueList.find(
+        (clue) =>
+          clue.row === activeWordCells[0]?.row &&
+          clue.col === activeWordCells[0]?.col
+      ) ??
+      clueList.find(
+        (clue) => clue.row === selectedRow && clue.col === selectedCol
+      ) ??
+      null
+    );
+  }, [activeWordCells, direction, puzzle, selectedCol, selectedRow]);
+
+  const totalWordCount = puzzle.clues.across.length + puzzle.clues.down.length;
+  const completedCount = correctWords.size;
+  const fillProgress = Math.round((completedCount / totalWordCount) * 100);
+  const solvedSet = new Set(stats.solvedDates);
+  let streak = 0;
+  let cursor = puzzle.date;
+
+  while (solvedSet.has(cursor)) {
+    streak += 1;
+    cursor = shiftDate(cursor, -1);
+  }
+
   return (
     <>
-      <div className="grid gap-8 xl:grid-cols-[minmax(420px,520px)_minmax(520px,1fr)] xl:items-start">
-        <div className="space-y-4">
-          <div className="flex items-center gap-3">
-            <span
-              className={`rounded-full px-3 py-1 text-sm font-bold ${
-                isDark
-                  ? "bg-green-950 text-green-300"
-                  : "bg-green-100 text-green-700"
-              }`}
-            >
-              Time: {formatTime(elapsedSeconds)}
-            </span>
-          </div>
+      <div className="space-y-8">
+        <section className="rounded-[32px] border border-[var(--line)] bg-[var(--card)] p-5 shadow-[0_18px_45px_rgba(18,31,53,0.08)] sm:p-6">
+          <div className="grid gap-6 xl:grid-cols-[minmax(420px,540px)_minmax(0,1fr)] xl:items-start">
+            <div className="space-y-5">
+              <div className="flex flex-wrap gap-3">
+                <span className="rounded-full bg-[var(--accent-soft)] px-4 py-2 text-sm font-semibold text-[var(--accent-strong)]">
+                  Time {formatTime(elapsedSeconds)}
+                </span>
+                <span className="rounded-full bg-[var(--card-muted)] px-4 py-2 text-sm font-semibold text-[var(--ink)]">
+                  Progress {completedCount}/{totalWordCount}
+                </span>
+                <span className="rounded-full bg-[var(--success-soft)] px-4 py-2 text-sm font-semibold text-[var(--success)]">
+                  Streak {streak} day{streak === 1 ? "" : "s"}
+                </span>
+                <span className="rounded-full bg-[var(--surface)] px-4 py-2 text-sm font-semibold text-[var(--muted)]">
+                  Autosaved
+                </span>
+              </div>
 
-          <div className="flex flex-wrap gap-3">
-            <button
-              type="button"
-              onClick={handleCheckAnswers}
-              className={`rounded-full px-4 py-2 text-sm font-bold transition ${
-                isDark
-                  ? "bg-neutral-800 text-white hover:bg-neutral-700"
-                  : "bg-neutral-200 text-black hover:bg-neutral-300"
-              }`}
-            >
-              Check Answers
-            </button>
-
-            <button
-              type="button"
-              onClick={handleRevealWord}
-              className={`rounded-full px-4 py-2 text-sm font-bold transition ${
-                isDark
-                  ? "bg-yellow-900/50 text-yellow-200 hover:bg-yellow-900/70"
-                  : "bg-yellow-200 text-yellow-900 hover:bg-yellow-300"
-              }`}
-            >
-              Reveal Word
-            </button>
-
-            <button
-              type="button"
-              onClick={handleResetPuzzle}
-              className={`rounded-full px-4 py-2 text-sm font-bold transition ${
-                isDark
-                  ? "bg-red-950 text-red-200 hover:bg-red-900"
-                  : "bg-red-100 text-red-700 hover:bg-red-200"
-              }`}
-            >
-              Reset Puzzle
-            </button>
-          </div>
-
-          <section
-            className={`rounded-3xl border p-5 sm:p-6 ${
-              isDark
-                ? "border-neutral-800 bg-neutral-950"
-                : "border-neutral-200 bg-neutral-50"
-            }`}
-          >
-            <div
-              className={`inline-block rounded-2xl border p-3 sm:p-4 ${
-                isDark
-                  ? "border-neutral-700 bg-neutral-900"
-                  : "border-yellow-300 bg-yellow-50"
-              }`}
-            >
-              {puzzle.grid.map((row, r) => (
-                <div key={r} className="flex">
-                  {row.map((cell, c) => {
-                    const isBlack = cell === "#";
-                    const isSelected = r === selectedRow && c === selectedCol;
-                    const isInActiveWord = activeWordSet.has(`${r}-${c}`);
-                    const isWrong = wrongCells.has(`${r}-${c}`);
-                    const isCorrect = correctCells.has(`${r}-${c}`);
-                    const isInCompletedWord =
-                      puzzle.clues.across.some((clue) => {
-                        const key = getWordKey(clue.row, clue.col, "across");
-                        if (!correctWords.has(key)) return false;
-
-                        return getWordCells(
-                          puzzle,
-                          clue.row,
-                          clue.col,
-                          "across"
-                        ).some((wordCell) => wordCell.row === r && wordCell.col === c);
-                      }) ||
-                      puzzle.clues.down.some((clue) => {
-                        const key = getWordKey(clue.row, clue.col, "down");
-                        if (!correctWords.has(key)) return false;
-
-                        return getWordCells(
-                          puzzle,
-                          clue.row,
-                          clue.col,
-                          "down"
-                        ).some((wordCell) => wordCell.row === r && wordCell.col === c);
-                      });
-
-                    const cellNumber = getCellNumber(puzzle, r, c);
-
-                    return (
-                      <button
-                        key={`${r}-${c}`}
-                        type="button"
-                        onClick={() => handleCellClick(r, c)}
-                        className={[
-                          "relative flex h-14 w-14 items-center justify-center border text-lg font-black transition-all duration-150 ease-out sm:h-16 sm:w-16",
-                          isBlack
-                            ? isDark
-                              ? "border-neutral-950 bg-neutral-950"
-                              : "border-neutral-800 bg-neutral-800"
-                            : isDark
-                              ? "border-neutral-600 bg-neutral-800 text-white"
-                              : "border-yellow-300 bg-yellow-50 text-black",
-                          !isBlack && isInActiveWord
-                            ? isDark
-                              ? "bg-yellow-900/40 shadow-[inset_0_0_0_1px_rgba(250,204,21,0.18),0_0_10px_rgba(250,204,21,0.08)]"
-                              : "bg-yellow-100 shadow-[inset_0_0_0_1px_rgba(250,204,21,0.35),0_0_10px_rgba(250,204,21,0.18)]"
-                            : "",
-                          isSelected
-                            ? isDark
-                              ? "z-10 scale-[1.05] bg-yellow-400 text-black ring-2 ring-yellow-300 shadow-[0_0_14px_rgba(250,204,21,0.45)]"
-                              : "z-10 scale-[1.05] bg-yellow-300 text-black ring-2 ring-yellow-400 shadow-[0_0_12px_rgba(250,204,21,0.22)]"
-                            : "",
-                          isInCompletedWord
-                            ? isDark
-                              ? "bg-emerald-700/60"
-                              : "bg-emerald-200"
-                            : "",
-                          isCorrect
-                            ? isDark
-                              ? "bg-green-600 text-white ring-2 ring-green-300"
-                              : "bg-green-200 text-green-900 ring-2 ring-green-400"
-                            : "",
-                          isWrong
-                            ? isDark
-                              ? "bg-red-600 text-white ring-2 ring-red-300"
-                              : "bg-red-200 text-red-900 ring-2 ring-red-400"
-                            : "",
-                          !isBlack
-                            ? isDark
-                              ? "hover:bg-neutral-700"
-                              : "hover:bg-yellow-100"
-                            : "",
-                        ].join(" ")}
-                      >
-                        {!isBlack && cellNumber !== null && (
-                          <span
-                            className={`absolute left-1 top-0.5 text-[10px] font-bold ${
-                              isDark ? "text-neutral-400" : "text-neutral-500"
-                            }`}
-                          >
-                            {cellNumber}
-                          </span>
-                        )}
-                        {!isBlack ? userGrid[r]?.[c] ?? "" : ""}
-                      </button>
-                    );
-                  })}
+              <div className="space-y-4">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.28em] text-[var(--muted)]">
+                    Active clue
+                  </p>
+                  <h2 className="mt-2 font-[family-name:var(--font-editorial)] text-3xl leading-tight">
+                    {activeClue
+                      ? `${activeClue.number}. ${activeClue.clue}`
+                      : "Select a clue to begin"}
+                  </h2>
+                  <p className="mt-2 text-sm text-[var(--muted)]">
+                    {direction === "across" ? "Across" : "Down"} |{" "}
+                    {activeWordCells.length} letters
+                  </p>
                 </div>
-              ))}
-            </div>
-          </section>
-        </div>
 
-        <ClueList
-          puzzle={puzzle}
-          activeDirection={direction}
-          activeRow={activeWordCells[0]?.row ?? selectedRow}
-          activeCol={activeWordCells[0]?.col ?? selectedCol}
-          onSelectClue={handleSelectClue}
-          theme={theme}
-        />
+                <div className="h-2 overflow-hidden rounded-full bg-[var(--card-muted)]">
+                  <div
+                    className="h-full rounded-full bg-[var(--accent)] transition-[width] duration-300"
+                    style={{ width: `${fillProgress}%` }}
+                  />
+                </div>
+              </div>
+
+              <div className="flex flex-wrap gap-3">
+                <button
+                  type="button"
+                  onClick={handleCheckAnswers}
+                  className="rounded-full border border-transparent bg-[var(--button-primary-bg)] px-4 py-2 text-sm font-semibold text-[var(--button-primary-text)] shadow-[var(--button-shadow)] transition hover:-translate-y-0.5 hover:bg-[var(--button-primary-hover)] active:translate-y-0 active:text-black active:shadow-[var(--button-shadow-pressed),var(--button-shadow)]"
+                  style={{ boxShadow: "var(--button-highlight), var(--button-shadow)" }}
+                >
+                  Check letters
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleRevealWord}
+                  className="rounded-full border border-[var(--button-secondary-border)] bg-[var(--button-secondary-bg)] px-4 py-2 text-sm font-semibold text-[var(--button-secondary-text)] shadow-[var(--button-shadow)] transition hover:-translate-y-0.5 hover:border-[var(--accent)] hover:bg-[var(--button-secondary-hover)] active:translate-y-0 active:text-black active:shadow-[var(--button-shadow-pressed),var(--button-shadow)]"
+                  style={{ boxShadow: "var(--button-highlight), var(--button-shadow)" }}
+                >
+                  Reveal word
+                </button>
+
+                <button
+                  type="button"
+                  onClick={clearGrid}
+                  className="rounded-full border border-[var(--button-secondary-border)] bg-[var(--button-secondary-bg)] px-4 py-2 text-sm font-semibold text-[var(--button-secondary-text)] shadow-[var(--button-shadow)] transition hover:-translate-y-0.5 hover:border-[var(--line)] hover:bg-[var(--button-secondary-hover)] active:translate-y-0 active:text-black active:shadow-[var(--button-shadow-pressed),var(--button-shadow)]"
+                  style={{ boxShadow: "var(--button-highlight), var(--button-shadow)" }}
+                >
+                  Clear board
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleResetPuzzle}
+                  className="rounded-full border border-[var(--button-secondary-border)] bg-[var(--button-secondary-bg)] px-4 py-2 text-sm font-semibold text-[var(--button-secondary-text)] shadow-[var(--button-shadow)] transition hover:-translate-y-0.5 hover:border-[var(--danger)] hover:bg-[var(--danger-soft)] active:translate-y-0 active:text-black active:shadow-[var(--button-shadow-pressed),var(--button-shadow)]"
+                  style={{ boxShadow: "var(--button-highlight), var(--button-shadow)" }}
+                >
+                  Reset timer
+                </button>
+              </div>
+
+              <section className="flex justify-center rounded-[28px] border border-[var(--line)] bg-[var(--card-muted)] p-4 sm:p-5">
+                <div className="inline-block rounded-[24px] border border-[var(--line-strong)] bg-[var(--surface)] p-2 shadow-[0_12px_24px_rgba(18,31,53,0.06)] sm:p-3">
+                  {puzzle.grid.map((row, rowIndex) => (
+                    <div key={rowIndex} className="flex">
+                      {row.map((cell, colIndex) => {
+                        const isBlack = cell === "#";
+                        const isSelected =
+                          rowIndex === selectedRow && colIndex === selectedCol;
+                        const cellKey = `${rowIndex}-${colIndex}`;
+                        const isInActiveWord = activeWordSet.has(cellKey);
+                        const isWrong = wrongCells.has(cellKey);
+                        const isCorrect = correctCells.has(cellKey);
+                        const isInCompletedWord =
+                          completedCellSet.has(cellKey);
+
+                        const cellNumber = getCellNumber(
+                          puzzle,
+                          rowIndex,
+                          colIndex
+                        );
+
+                        return (
+                          <button
+                            key={cellKey}
+                            type="button"
+                            onClick={() => handleCellClick(rowIndex, colIndex)}
+                            className={[
+                              "relative flex h-12 w-12 items-center justify-center border text-lg font-black uppercase transition-all duration-150 ease-out sm:h-14 sm:w-14",
+                              isBlack
+                                ? "border-[var(--black-cell)] bg-[var(--black-cell)]"
+                                : "border-[var(--line-strong)] bg-[var(--cell-bg)] text-[var(--cell-text)]",
+                              !isBlack && isInActiveWord
+                                ? "bg-[var(--accent-soft)]"
+                                : "",
+                              isSelected
+                                ? "z-10 scale-[1.03] border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-contrast)] shadow-[0_12px_24px_rgba(163,88,40,0.28)]"
+                                : "",
+                              isInCompletedWord
+                                ? "bg-[var(--success-soft)]"
+                                : "",
+                              isCorrect ? "bg-[var(--success)] text-[var(--accent-contrast)]" : "",
+                              isWrong ? "bg-[var(--danger)] text-[var(--accent-contrast)]" : "",
+                              !isBlack ? "hover:bg-[var(--accent-soft)]" : "",
+                            ].join(" ")}
+                          >
+                            {!isBlack && cellNumber !== null && (
+                              <span className="absolute left-1 top-0.5 text-[10px] font-semibold text-[var(--muted)]">
+                                {cellNumber}
+                              </span>
+                            )}
+                            {!isBlack ? (
+                              <span className="text-[color:inherit]">
+                                {userGrid[rowIndex]?.[colIndex] ?? ""}
+                              </span>
+                            ) : (
+                              ""
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  ))}
+                </div>
+              </section>
+            </div>
+
+            <div className="space-y-5">
+              <div className="-mx-1 flex gap-3 overflow-x-auto px-1 pb-1 md:grid md:mx-0 md:overflow-visible md:px-0 md:pb-0 md:grid-cols-3 md:gap-4">
+                <article className="shrink-0 rounded-full bg-[var(--card-muted)] px-4 py-2 text-sm font-semibold text-[var(--ink)] md:rounded-[24px] md:border md:border-[var(--line)] md:bg-[var(--surface)] md:p-4">
+                  <p className="text-[0.65rem] font-semibold uppercase tracking-[0.16em] text-[var(--muted)] md:text-xs md:tracking-[0.2em]">
+                    Solved total
+                  </p>
+                  <p className="mt-0.5 font-semibold md:mt-2 md:font-[family-name:var(--font-editorial)] md:text-4xl">
+                    {stats.solvedDates.length}
+                  </p>
+                </article>
+
+                <article className="shrink-0 rounded-full bg-[var(--card-muted)] px-4 py-2 text-sm font-semibold text-[var(--ink)] md:rounded-[24px] md:border md:border-[var(--line)] md:bg-[var(--surface)] md:p-4">
+                  <p className="text-[0.65rem] font-semibold uppercase tracking-[0.16em] text-[var(--muted)] md:text-xs md:tracking-[0.2em]">
+                    Best time
+                  </p>
+                  <p className="mt-0.5 font-semibold md:mt-2 md:font-[family-name:var(--font-editorial)] md:text-4xl">
+                    {stats.bestTimeSeconds === null
+                      ? "--:--"
+                      : formatTime(stats.bestTimeSeconds)}
+                  </p>
+                </article>
+
+                <article className="shrink-0 rounded-full bg-[var(--card-muted)] px-4 py-2 text-sm font-semibold text-[var(--ink)] md:rounded-[24px] md:border md:border-[var(--line)] md:bg-[var(--surface)] md:p-4">
+                  <p className="text-[0.65rem] font-semibold uppercase tracking-[0.16em] text-[var(--muted)] md:text-xs md:tracking-[0.2em]">
+                    Completion
+                  </p>
+                  <p className="mt-0.5 font-semibold md:mt-2 md:font-[family-name:var(--font-editorial)] md:text-4xl">
+                    {fillProgress}%
+                  </p>
+                </article>
+              </div>
+
+              <ClueList
+                puzzle={puzzle}
+                activeDirection={direction}
+                activeRow={activeWordCells[0]?.row ?? selectedRow}
+                activeCol={activeWordCells[0]?.col ?? selectedCol}
+                completedWords={correctWords}
+                onSelectClue={handleSelectClue}
+              />
+            </div>
+          </div>
+        </section>
       </div>
 
       {showWinModal && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(15,23,42,0.55)] p-4"
           onClick={() => setShowWinModal(false)}
         >
           <div
-            onClick={(e) => e.stopPropagation()}
-            className={`w-full max-w-md rounded-3xl border p-6 shadow-2xl ${
-              isDark
-                ? "border-neutral-700 bg-neutral-900 text-white"
-                : "border-neutral-200 bg-white text-black"
-            }`}
+            onClick={(event) => event.stopPropagation()}
+            className="w-full max-w-md rounded-[32px] border border-[var(--line)] bg-[var(--surface)] p-6 text-[var(--ink)] shadow-[0_28px_60px_rgba(18,31,53,0.18)]"
           >
-            <h2 className="text-2xl font-black">Puzzle complete 🎉</h2>
-            <p className={`mt-2 ${isDark ? "text-neutral-300" : "text-neutral-600"}`}>
+            <h2 className="font-[family-name:var(--font-editorial)] text-3xl">
+              Puzzle complete
+            </h2>
+            <p className="mt-2 text-[var(--muted)]">
               You solved <span className="font-bold">{puzzle.title}</span>.
             </p>
 
@@ -594,13 +728,20 @@ export default function CrosswordGrid({ puzzle, theme }: Props) {
                 Time: <span className="font-bold">{formatTime(elapsedSeconds)}</span>
               </div>
               <div>
-                Solved total: <span className="font-bold">{stats.solvedCount}</span>
+                Solved total:{" "}
+                <span className="font-bold">{stats.solvedDates.length}</span>
+              </div>
+              <div>
+                Current streak:{" "}
+                <span className="font-bold">
+                  {streak} day{streak === 1 ? "" : "s"}
+                </span>
               </div>
               <div>
                 Best time:{" "}
                 <span className="font-bold">
                   {stats.bestTimeSeconds === null
-                    ? "—"
+                    ? "--:--"
                     : formatTime(stats.bestTimeSeconds)}
                 </span>
               </div>
@@ -610,29 +751,30 @@ export default function CrosswordGrid({ puzzle, theme }: Props) {
               <button
                 type="button"
                 onClick={() => setShowWinModal(false)}
-                className={`rounded-full px-4 py-2 text-sm font-bold ${
-                  isDark
-                    ? "bg-neutral-800 text-white hover:bg-neutral-700"
-                    : "bg-neutral-200 text-black hover:bg-neutral-300"
-                }`}
+                className="rounded-full border border-[var(--line-strong)] bg-[var(--surface)] px-4 py-2 text-sm font-semibold text-[var(--ink)] transition hover:bg-[var(--card-muted)]"
               >
                 Close
               </button>
 
               <button
                 type="button"
-                onClick={handleResetPuzzle}
-                className={`rounded-full px-4 py-2 text-sm font-bold ${
-                  isDark
-                    ? "bg-yellow-700 text-white hover:bg-yellow-600"
-                    : "bg-yellow-300 text-black hover:bg-yellow-400"
-                }`}
+                onClick={clearGrid}
+                className="rounded-full bg-[var(--accent)] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[var(--accent-strong)]"
               >
-                Play Again
+                Clear board
+              </button>
+
+              <button
+                type="button"
+                onClick={handleShareResult}
+                className="rounded-full border border-[var(--line-strong)] bg-[var(--surface)] px-4 py-2 text-sm font-semibold text-[var(--ink)] transition hover:bg-[var(--card-muted)]"
+              >
+                {shareState === "copied" ? "Copied" : "Share"}
               </button>
             </div>
           </div>
         </div>
       )}
-    </> );
+    </>
+  );
 }

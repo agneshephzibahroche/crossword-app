@@ -2,6 +2,28 @@ import { Puzzle } from "@/types/puzzle";
 import { PUZZLE_BANK } from "@/lib/puzzleBank";
 import { validatePuzzleBank } from "@/lib/validatePuzzleBank";
 
+type RawClue = {
+  number: number;
+  row: number;
+  col: number;
+  answer: string;
+  clues: string[];
+};
+
+type RawPuzzle = {
+  id: string;
+  date: string;
+  title: string;
+  rows: number;
+  cols: number;
+  grid: string[][];
+  solution: string[][];
+  clues: {
+    across: RawClue[];
+    down: RawClue[];
+  };
+};
+
 function pickUniqueClue(clues: string[], usedClues: Set<string>): string {
   for (const clue of clues) {
     if (!usedClues.has(clue)) {
@@ -15,10 +37,10 @@ function pickUniqueClue(clues: string[], usedClues: Set<string>): string {
   return fallback;
 }
 
-function processClues(puzzle: any): Puzzle {
+function processClues(puzzle: RawPuzzle): Puzzle {
   const usedClues = new Set<string>();
 
-  const process = (clues: any[]) =>
+  const process = (clues: RawClue[]) =>
     clues.map((c) => ({
       number: c.number,
       row: c.row,
@@ -37,7 +59,7 @@ function processClues(puzzle: any): Puzzle {
 }
 
 export function generateCrossword(): Puzzle {
-  const errors = validatePuzzleBank(PUZZLE_BANK as any);
+  const errors = validatePuzzleBank(PUZZLE_BANK as RawPuzzle[]);
   if (errors.length > 0) {
     throw new Error(`Puzzle bank invalid:\n${errors.join("\n")}`);
   }
