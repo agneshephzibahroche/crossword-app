@@ -1,36 +1,49 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Letterbeat
 
-## Getting Started
+Letterbeat is a mobile-friendly daily 5x5 crossword game built with Next.js. It includes a daily puzzle, a small recent archive, light and dark themes, local progress saving, streak tracking, and a polished newspaper-inspired interface.
 
-First, run the development server:
+## Local Development
+
+Install dependencies and start the app:
+
+```bash
+npm install
+npm run dev
+```
+
+Open [http://localhost:3000](http://localhost:3000).
+
+## Useful Scripts
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm run lint
+npm run build
+npm run start
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Production Notes
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+- The app currently stores progress, stats, and theme in browser `localStorage`.
+- Daily puzzles are generated deterministically from the date, so the same day resolves to the same puzzle.
+- The recent archive only shows the last 3 puzzles.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Deploying To Vercel
 
-## Learn More
+1. Push this project to GitHub.
+2. Sign in to [Vercel](https://vercel.com/).
+3. Click `Add New` -> `Project`.
+4. Import the GitHub repository.
+5. Keep the default Next.js build settings.
+6. Click `Deploy`.
 
-To learn more about Next.js, take a look at the following resources:
+For this version, no extra environment variables are required unless you add backend services later.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Pre-Launch Checklist
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+- Run `npm run lint`
+- Run `npm run build`
+- Test mobile layout
+- Test dark and light mode
+- Test solving, refresh persistence, and the recent archive
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
