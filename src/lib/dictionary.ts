@@ -1,9 +1,204 @@
 export type DictionaryEntry = {
   word: string;
   clue: string;
+  clues: string[];
+  quality: number;
+  allowInDaily: boolean;
+  tags: string[];
 };
 
-export const DICTIONARY: DictionaryEntry[] = [
+type RawDictionaryEntry = {
+  word: string;
+  clue: string;
+};
+
+type DictionaryOverride = {
+  clues?: string[];
+  quality?: number;
+  allowInDaily?: boolean;
+  tags?: string[];
+};
+
+const DICTIONARY_OVERRIDES: Record<string, DictionaryOverride> = {
+  AD: {
+    quality: 1,
+    allowInDaily: false,
+    tags: ["abbreviation", "crosswordese"],
+  },
+  EL: {
+    quality: 1,
+    allowInDaily: false,
+    tags: ["foreign", "crosswordese"],
+  },
+  EN: {
+    quality: 1,
+    allowInDaily: false,
+    tags: ["printing", "crosswordese"],
+  },
+  FA: {
+    quality: 1,
+    allowInDaily: false,
+    tags: ["music", "crosswordese"],
+  },
+  NE: {
+    quality: 1,
+    allowInDaily: false,
+    tags: ["abbreviation", "crosswordese"],
+  },
+  RE: {
+    quality: 1,
+    allowInDaily: false,
+    tags: ["latin", "crosswordese"],
+  },
+  AB: {
+    quality: 2,
+    allowInDaily: false,
+    tags: ["informal", "abbreviation"],
+  },
+  AM: {
+    clues: ["Morning half of the day", "Hours before noon"],
+    quality: 3,
+  },
+  AIR: {
+    clues: ["What we breathe", "Invisible stuff all around us"],
+    quality: 7,
+  },
+  AND: {
+    clues: ["Plus", "Common joining word"],
+    quality: 6,
+  },
+  ANT: {
+    clues: ["Tiny hardworking insect", "Picnic pest, often"],
+    quality: 7,
+  },
+  APPLE: {
+    clues: ["Common orchard fruit", "Fruit in many lunchboxes"],
+    quality: 10,
+    tags: ["food", "fresh"],
+  },
+  BASIL: {
+    clues: ["Pesto herb", "Leafy herb in pesto"],
+    quality: 9,
+    tags: ["food"],
+  },
+  BERRY: {
+    clues: ["Small juicy fruit", "Blueberry or raspberry"],
+    quality: 9,
+    tags: ["food"],
+  },
+  BRAIN: {
+    clues: ["Thinking organ", "The body's command center"],
+    quality: 9,
+  },
+  BREAD: {
+    clues: ["Baked loaf", "Sandwich base, often"],
+    quality: 9,
+    tags: ["food"],
+  },
+  CHAIR: {
+    clues: ["Seat with a back", "Something you pull up to a table"],
+    quality: 8,
+  },
+  CLOCK: {
+    clues: ["It tells time", "Wall item with hands, maybe"],
+    quality: 8,
+  },
+  CLOUD: {
+    clues: ["Visible sky vapor", "Something drifting overhead"],
+    quality: 8,
+  },
+  DANCE: {
+    clues: ["Move to the music", "Bust a move"],
+    quality: 8,
+  },
+  DREAM: {
+    clues: ["Sleeping vision", "Hopeful goal"],
+    quality: 8,
+  },
+  EARTH: {
+    clues: ["Planet we live on", "The third planet from the sun"],
+    quality: 8,
+  },
+  HOUSE: {
+    clues: ["Place to live", "Home building"],
+    quality: 8,
+  },
+  LIGHT: {
+    clues: ["Opposite of darkness", "Something a lamp provides"],
+    quality: 8,
+  },
+  OCEAN: {
+    clues: ["Atlantic or Pacific", "Vast body of salt water"],
+    quality: 9,
+  },
+  PLANE: {
+    clues: ["Flying vehicle", "Jet, for one"],
+    quality: 8,
+  },
+  PLANT: {
+    clues: ["Leafy living thing", "Houseplant, for example"],
+    quality: 8,
+  },
+  PLATE: {
+    clues: ["Dish for dinner", "What a meal may be served on"],
+    quality: 8,
+  },
+  RIVER: {
+    clues: ["Large natural stream", "Mississippi, for one"],
+    quality: 9,
+  },
+  SHEEP: {
+    clues: ["Woolly farm animal", "Animal counted to fall asleep"],
+    quality: 8,
+  },
+  SMILE: {
+    clues: ["Happy facial expression", "Grin"],
+    quality: 9,
+  },
+  SOUND: {
+    clues: ["What you hear", "Something picked up by the ears"],
+    quality: 8,
+  },
+  SPOON: {
+    clues: ["Soup utensil", "Cereal scooper"],
+    quality: 8,
+  },
+  STONE: {
+    clues: ["Small rock", "Hard thing you might skip on water"],
+    quality: 8,
+  },
+  TABLE: {
+    clues: ["Furniture with a flat top", "Dining-room surface"],
+    quality: 9,
+  },
+  THYME: {
+    clues: ["Savory kitchen herb", "Herb with tiny leaves"],
+    quality: 8,
+    tags: ["food"],
+  },
+  TRAIL: {
+    clues: ["Path through the woods", "Hiking route"],
+    quality: 8,
+  },
+  TRAIN: {
+    clues: ["Rail vehicle", "Locomotive and cars"],
+    quality: 8,
+  },
+  WATER: {
+    clues: ["Liquid essential for life", "What fills a glass from the tap"],
+    quality: 10,
+  },
+  WHEEL: {
+    clues: ["Circular car part", "Round part of a bike"],
+    quality: 8,
+  },
+  WORLD: {
+    clues: ["The Earth and its people", "The whole planet"],
+    quality: 9,
+  },
+};
+
+const RAW_DICTIONARY: RawDictionaryEntry[] = [
   { word: "AB", clue: "Muscles by the waist, informally" },
   { word: "AD", clue: "Promotional message, briefly" },
   { word: "AM", clue: "Morning half of a day" },
@@ -233,3 +428,61 @@ export const DICTIONARY: DictionaryEntry[] = [
   { word: "WIDEN", clue: "Make broader" },
   { word: "WORLD", clue: "The Earth and its people" },
 ];
+
+function hashString(value: string) {
+  let hash = 2166136261;
+
+  for (let index = 0; index < value.length; index += 1) {
+    hash ^= value.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+
+  return hash >>> 0;
+}
+
+function inferQuality(word: string) {
+  if (word.length >= 5) {
+    return 8;
+  }
+
+  if (word.length === 4) {
+    return 7;
+  }
+
+  if (word.length === 3) {
+    return 6;
+  }
+
+  return 3;
+}
+
+function buildTags(word: string, override?: DictionaryOverride) {
+  const tags = new Set<string>(override?.tags ?? []);
+
+  if (word.length <= 2) {
+    tags.add("short-fill");
+  }
+
+  return [...tags];
+}
+
+export const DICTIONARY: DictionaryEntry[] = RAW_DICTIONARY.map((entry) => {
+  const override = DICTIONARY_OVERRIDES[entry.word];
+  const clues = Array.from(
+    new Set([...(override?.clues ?? []), entry.clue])
+  );
+
+  return {
+    word: entry.word,
+    clue: clues[0],
+    clues,
+    quality: override?.quality ?? inferQuality(entry.word),
+    allowInDaily: override?.allowInDaily ?? true,
+    tags: buildTags(entry.word, override),
+  };
+});
+
+export function getEntryClue(entry: DictionaryEntry, seed: string) {
+  const index = hashString(`${seed}:${entry.word}`) % entry.clues.length;
+  return entry.clues[index] ?? entry.clue;
+}

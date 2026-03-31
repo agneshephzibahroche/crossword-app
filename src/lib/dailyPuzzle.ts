@@ -1,4 +1,4 @@
-import { DICTIONARY, DictionaryEntry } from "@/lib/dictionary";
+import { DICTIONARY, DictionaryEntry, getEntryClue } from "@/lib/dictionary";
 import { findSlots, Slot } from "@/lib/findSlots";
 import { Puzzle } from "@/types/puzzle";
 
@@ -137,6 +137,25 @@ function shuffleWithSeed<T>(items: T[], seed: string) {
   return result;
 }
 
+function getEntryPriority(entry: DictionaryEntry, seed: string) {
+  const baseScore = entry.quality * 100;
+  const lengthBonus = entry.word.length * 6;
+  const shortFillPenalty = entry.tags.includes("short-fill") ? -18 : 0;
+  const tieBreaker = hashString(`${seed}:${entry.word}`) % 17;
+
+  return baseScore + lengthBonus + shortFillPenalty + tieBreaker;
+}
+
+function sortCandidates(
+  candidates: DictionaryEntry[],
+  seed: string
+) {
+  return [...candidates].sort(
+    (left, right) =>
+      getEntryPriority(right, seed) - getEntryPriority(left, seed)
+  );
+}
+
 function toDateKey(date: Date) {
   return date.toISOString().slice(0, 10);
 }
@@ -197,6 +216,7 @@ function selectSlots(slots: Slot[], grid: string[][], usedWords: Set<string>, se
   for (const slot of slots) {
     const candidates = (DICTIONARY_BY_LENGTH.get(slot.length) ?? []).filter(
       (entry) =>
+        entry.allowInDaily &&
         !usedWords.has(entry.word) &&
         fitsWord(grid, slot, entry.word)
     );
@@ -207,8 +227,11 @@ function selectSlots(slots: Slot[], grid: string[][], usedWords: Set<string>, se
 
     if (!bestSlot || candidates.length < bestCandidates.length) {
       bestSlot = slot;
-      bestCandidates = shuffleWithSeed(
-        candidates,
+      bestCandidates = sortCandidates(
+        shuffleWithSeed(
+          candidates,
+          `${seed}:${slot.row}:${slot.col}:${slot.direction}`
+        ),
         `${seed}:${slot.row}:${slot.col}:${slot.direction}`
       );
     }
@@ -284,7 +307,7 @@ function buildPuzzle(dateKey: string, pattern: PatternTemplate, seed: string) {
         number: slot.number,
         row: slot.row,
         col: slot.col,
-        clue: entry.clue,
+        clue: getEntryClue(entry, `${dateKey}:${slot.number}:across`),
         answer: entry.word,
       };
     });
@@ -302,7 +325,7 @@ function buildPuzzle(dateKey: string, pattern: PatternTemplate, seed: string) {
         number: slot.number,
         row: slot.row,
         col: slot.col,
-        clue: entry.clue,
+        clue: getEntryClue(entry, `${dateKey}:${slot.number}:down`),
         answer: entry.word,
       };
     });
