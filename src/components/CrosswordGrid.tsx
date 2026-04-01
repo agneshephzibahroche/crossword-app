@@ -606,16 +606,38 @@ export default function CrosswordGrid({ puzzle }: Props) {
     localStorage.setItem(STATS_KEY, JSON.stringify(nextStats));
   }, [elapsedSeconds, hasShownWin, isComplete, puzzle.date, stats]);
 
-  function formatTime(totalSeconds: number) {
+function formatTime(totalSeconds: number) {
     const mins = Math.floor(totalSeconds / 60);
     const secs = totalSeconds % 60;
     return `${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
   }
 
+  function buildShareGrid() {
+    return puzzle.grid
+      .map((row, rowIndex) =>
+        row
+          .map((cell, colIndex) => {
+            if (cell === "#") {
+              return "⬛";
+            }
+
+            if (revealedCells.has(`${rowIndex}-${colIndex}`)) {
+              return "🟨";
+            }
+
+            return "🟩";
+          })
+          .join("")
+      )
+      .join("\n");
+  }
+
   async function handleShareResult() {
-    const text = `Letterbeat ${puzzle.date} solved in ${formatTime(
-      elapsedSeconds
-    )} • ${streak} day streak`;
+    const text = [
+      `Letterbeat ${puzzle.date}`,
+      `Solved in ${formatTime(elapsedSeconds)}`,
+      buildShareGrid(),
+    ].join("\n");
 
     try {
       await navigator.clipboard.writeText(text);
