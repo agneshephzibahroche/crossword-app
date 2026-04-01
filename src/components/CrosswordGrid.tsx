@@ -308,14 +308,6 @@ export default function CrosswordGrid({ puzzle }: Props) {
     setRevealedWords(new Set());
   }
 
-  function handleResetPuzzle() {
-    clearGrid();
-    setElapsedSeconds(0);
-    setShowWinModal(false);
-    setHasShownWin(false);
-    localStorage.removeItem(storageKey);
-  }
-
   function handleRevealWord() {
     const cells = getWordCells(puzzle, selectedRow, selectedCol, direction);
     if (cells.length === 0) return;
@@ -577,10 +569,6 @@ export default function CrosswordGrid({ puzzle }: Props) {
       return false;
     }
 
-    if (revealedCells.size > 0) {
-      return false;
-    }
-
     for (let row = 0; row < puzzle.rows; row += 1) {
       for (let col = 0; col < puzzle.cols; col += 1) {
         if (puzzle.grid[row][col] === "#") continue;
@@ -592,13 +580,17 @@ export default function CrosswordGrid({ puzzle }: Props) {
     }
 
     return true;
-  }, [puzzle, revealedCells, userGrid]);
+  }, [puzzle, userGrid]);
 
   useEffect(() => {
     if (!isComplete || hasShownWin) return;
 
     setShowWinModal(true);
     setHasShownWin(true);
+
+    if (revealedCells.size > 0) {
+      return;
+    }
 
     const solvedDates = stats.solvedDates.includes(puzzle.date)
       ? stats.solvedDates
@@ -614,7 +606,7 @@ export default function CrosswordGrid({ puzzle }: Props) {
 
     setStats(nextStats);
     localStorage.setItem(STATS_KEY, JSON.stringify(nextStats));
-  }, [elapsedSeconds, hasShownWin, isComplete, puzzle.date, stats]);
+  }, [elapsedSeconds, hasShownWin, isComplete, puzzle.date, revealedCells.size, stats]);
 
 function formatTime(totalSeconds: number) {
     const mins = Math.floor(totalSeconds / 60);
@@ -658,12 +650,6 @@ function formatTime(totalSeconds: number) {
     }
   }
 
-  function shiftDate(dateKey: string, amount: number) {
-    const date = new Date(`${dateKey}T00:00:00Z`);
-    date.setUTCDate(date.getUTCDate() + amount);
-    return date.toISOString().slice(0, 10);
-  }
-
   const activeClue = useMemo(() => {
     const clueList =
       direction === "across" ? puzzle.clues.across : puzzle.clues.down;
@@ -684,14 +670,7 @@ function formatTime(totalSeconds: number) {
   const totalWordCount = puzzle.clues.across.length + puzzle.clues.down.length;
   const completedCount = correctWords.size;
   const fillProgress = Math.round((completedCount / totalWordCount) * 100);
-  const solvedSet = new Set(stats.solvedDates);
-  let streak = 0;
-  let cursor = puzzle.date;
-
-  while (solvedSet.has(cursor)) {
-    streak += 1;
-    cursor = shiftDate(cursor, -1);
-  }
+  const hasReveals = revealedCells.size > 0;
 
   return (
     <>
@@ -763,14 +742,6 @@ function formatTime(totalSeconds: number) {
                   Clear board
                 </button>
 
-                <button
-                  type="button"
-                  onClick={handleResetPuzzle}
-                  className="rounded-full border border-[var(--button-secondary-border)] bg-[var(--button-secondary-bg)] px-4 py-2 text-sm font-semibold text-[var(--button-secondary-text)] shadow-[var(--button-shadow)] transition hover:-translate-y-0.5 hover:border-[var(--danger)] hover:bg-[var(--danger-soft)] active:translate-y-0 active:text-black active:shadow-[var(--button-shadow-pressed),var(--button-shadow)]"
-                  style={{ boxShadow: "var(--button-highlight), var(--button-shadow)" }}
-                >
-                  Reset timer
-                </button>
               </div>
 
               <section className="flex justify-center rounded-[28px] border border-[var(--line)] bg-[var(--card-muted)] p-4 sm:p-5">
@@ -893,7 +864,11 @@ function formatTime(totalSeconds: number) {
               Puzzle complete
             </h2>
             <p className="mt-2 text-[var(--muted)]">
-              You solved <span className="font-bold">puzzle {puzzle.date}</span>.
+              You{" "}
+              <span className="font-bold">
+                {hasReveals ? "completed with reveals" : "solved"}
+              </span>{" "}
+              <span className="font-bold">puzzle {puzzle.date}</span>.
             </p>
 
             <div className="mt-5 space-y-2 text-sm">
