@@ -859,37 +859,6 @@ function formatTime(totalSeconds: number) {
             </div>
 
             <div className="space-y-5">
-              <div className="-mx-1 flex gap-3 overflow-x-auto px-1 pb-1 md:grid md:mx-0 md:overflow-visible md:px-0 md:pb-0 md:grid-cols-3 md:gap-4">
-                <article className="shrink-0 rounded-full bg-[var(--card-muted)] px-4 py-2 text-sm font-semibold text-[var(--ink)] md:rounded-[24px] md:border md:border-[var(--line)] md:bg-[var(--surface)] md:p-4">
-                  <p className="text-[0.65rem] font-semibold uppercase tracking-[0.16em] text-[var(--muted)] md:text-xs md:tracking-[0.2em]">
-                    Solved total
-                  </p>
-                  <p className="mt-0.5 font-semibold md:mt-2 md:font-[family-name:var(--font-editorial)] md:text-4xl">
-                    {stats.solvedDates.length}
-                  </p>
-                </article>
-
-                <article className="shrink-0 rounded-full bg-[var(--card-muted)] px-4 py-2 text-sm font-semibold text-[var(--ink)] md:rounded-[24px] md:border md:border-[var(--line)] md:bg-[var(--surface)] md:p-4">
-                  <p className="text-[0.65rem] font-semibold uppercase tracking-[0.16em] text-[var(--muted)] md:text-xs md:tracking-[0.2em]">
-                    Best time
-                  </p>
-                  <p className="mt-0.5 font-semibold md:mt-2 md:font-[family-name:var(--font-editorial)] md:text-4xl">
-                    {stats.bestTimeSeconds === null
-                      ? "--:--"
-                      : formatTime(stats.bestTimeSeconds)}
-                  </p>
-                </article>
-
-                <article className="shrink-0 rounded-full bg-[var(--card-muted)] px-4 py-2 text-sm font-semibold text-[var(--ink)] md:rounded-[24px] md:border md:border-[var(--line)] md:bg-[var(--surface)] md:p-4">
-                  <p className="text-[0.65rem] font-semibold uppercase tracking-[0.16em] text-[var(--muted)] md:text-xs md:tracking-[0.2em]">
-                    Completion
-                  </p>
-                  <p className="mt-0.5 font-semibold md:mt-2 md:font-[family-name:var(--font-editorial)] md:text-4xl">
-                    {fillProgress}%
-                  </p>
-                </article>
-              </div>
-
               <ClueList
                 puzzle={puzzle}
                 activeDirection={direction}
