@@ -706,9 +706,6 @@ function formatTime(totalSeconds: number) {
                 <span className="rounded-full bg-[var(--card-muted)] px-4 py-2 text-sm font-semibold text-[var(--ink)]">
                   Progress {completedCount}/{totalWordCount}
                 </span>
-                <span className="rounded-full bg-[var(--success-soft)] px-4 py-2 text-sm font-semibold text-[var(--success)]">
-                  Streak {streak} day{streak === 1 ? "" : "s"}
-                </span>
                 <span className="rounded-full bg-[var(--surface)] px-4 py-2 text-sm font-semibold text-[var(--muted)]">
                   Autosaved
                 </span>
