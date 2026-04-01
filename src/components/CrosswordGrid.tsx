@@ -416,6 +416,10 @@ export default function CrosswordGrid({ puzzle }: Props) {
         return;
       }
 
+      if (revealedCells.has(`${selectedRow}-${selectedCol}`)) {
+        return;
+      }
+
       setUserGrid((prev) => {
         const next = prev.map((row) => [...row]);
         next[selectedRow][selectedCol] = letter;
@@ -438,6 +442,7 @@ export default function CrosswordGrid({ puzzle }: Props) {
       evaluateCorrectWords,
       isBlackCell,
       moveSelection,
+      revealedCells,
       selectedCol,
       selectedRow,
       showWinModal,
@@ -468,6 +473,10 @@ export default function CrosswordGrid({ puzzle }: Props) {
 
       if (event.key === "Backspace") {
         event.preventDefault();
+
+        if (revealedCells.has(`${selectedRow}-${selectedCol}`)) {
+          return;
+        }
 
         if (userGrid[selectedRow][selectedCol]) {
           setUserGrid((prev) => {
@@ -523,6 +532,7 @@ export default function CrosswordGrid({ puzzle }: Props) {
       handleLetterInput,
       isBlackCell,
       moveSelection,
+      revealedCells,
       selectedCol,
       selectedRow,
       showWinModal,
