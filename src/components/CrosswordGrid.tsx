@@ -895,30 +895,44 @@ export default function CrosswordGrid({ puzzle }: Props) {
               Puzzle complete
             </h2>
             <p className="mt-2 text-[var(--muted)]">
-              You solved <span className="font-bold">{puzzle.title}</span>.
+              You solved <span className="font-bold">puzzle {puzzle.date}</span>.
             </p>
 
             <div className="mt-5 space-y-2 text-sm">
               <div>
                 Time: <span className="font-bold">{formatTime(elapsedSeconds)}</span>
               </div>
-              <div>
-                Solved total:{" "}
-                <span className="font-bold">{stats.solvedDates.length}</span>
-              </div>
-              <div>
-                Current streak:{" "}
-                <span className="font-bold">
-                  {streak} day{streak === 1 ? "" : "s"}
-                </span>
-              </div>
-              <div>
-                Best time:{" "}
-                <span className="font-bold">
-                  {stats.bestTimeSeconds === null
-                    ? "--:--"
-                    : formatTime(stats.bestTimeSeconds)}
-                </span>
+            </div>
+
+            <div className="mt-5 flex justify-center">
+              <div className="inline-block rounded-[24px] border border-[var(--line-strong)] bg-[var(--paper)] p-2 shadow-[0_12px_24px_rgba(18,31,53,0.06)]">
+                {puzzle.solution.map((row, rowIndex) => (
+                  <div key={`win-${rowIndex}`} className="flex">
+                    {row.map((cell, colIndex) => {
+                      const isBlack = cell === "#";
+                      const cellNumber = getCellNumber(puzzle, rowIndex, colIndex);
+
+                      return (
+                        <div
+                          key={`win-${rowIndex}-${colIndex}`}
+                          className={[
+                            "relative flex h-9 w-9 items-center justify-center border text-sm font-black uppercase sm:h-10 sm:w-10",
+                            isBlack
+                              ? "border-[var(--black-cell)] bg-[var(--black-cell)]"
+                              : "border-[var(--line-strong)] bg-[var(--cell-bg)] text-[var(--cell-text)]",
+                          ].join(" ")}
+                        >
+                          {!isBlack && cellNumber !== null && (
+                            <span className="absolute left-1 top-0.5 text-[8px] font-semibold text-[var(--muted)]">
+                              {cellNumber}
+                            </span>
+                          )}
+                          {!isBlack ? cell : ""}
+                        </div>
+                      );
+                    })}
+                  </div>
+                ))}
               </div>
             </div>
 
