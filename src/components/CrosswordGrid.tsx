@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { FormEvent } from "react";
+import type { ChangeEvent } from "react";
 import ClueList from "@/components/ClueList";
 import { getCellNumber, getWordCells } from "@/lib/crossword";
 import { Direction, Puzzle } from "@/types/puzzle";
@@ -12,10 +12,13 @@ type Props = {
 
 type CrosswordStats = {
   solvedDates: string[];
+  completedWithRevealsDates: string[];
   bestTimeSeconds: number | null;
+  cleanSolveTimesByDate: Record<string, number>;
 };
 
 const STATS_KEY = "crossword-daily-stats-v1";
+const ARCHIVE_EVENT = "letterbeat-archive-change";
 
 function getWordKey(row: number, col: number, wordDirection: Direction) {
   return `${row}-${col}-${wordDirection}`;
@@ -56,8 +59,7 @@ function computeCorrectWords(
 }
 
 export default function CrosswordGrid({ puzzle }: Props) {
-  const mobileInputRef = useRef<HTMLInputElement | null>(null);
-  const [usesTouchKeyboard, setUsesTouchKeyboard] = useState(false);
+  const cellInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
   const [selectedRow, setSelectedRow] = useState(0);
   const [selectedCol, setSelectedCol] = useState(0);
   const [direction, setDirection] = useState<Direction>("across");
@@ -71,7 +73,9 @@ export default function CrosswordGrid({ puzzle }: Props) {
   const [hasShownWin, setHasShownWin] = useState(false);
   const [stats, setStats] = useState<CrosswordStats>({
     solvedDates: [],
+    completedWithRevealsDates: [],
     bestTimeSeconds: null,
+    cleanSolveTimesByDate: {},
   });
   const [shareState, setShareState] = useState<"idle" | "copied">("idle");
 
@@ -92,35 +96,38 @@ export default function CrosswordGrid({ puzzle }: Props) {
     if (!raw) return;
 
     try {
-      const parsed = JSON.parse(raw) as CrosswordStats;
+      const parsed = JSON.parse(raw) as Partial<CrosswordStats>;
+      const cleanSolveTimesByDate =
+        parsed.cleanSolveTimesByDate &&
+        typeof parsed.cleanSolveTimesByDate === "object"
+          ? Object.fromEntries(
+              Object.entries(parsed.cleanSolveTimesByDate).filter(
+                ([key, value]) => key && typeof value === "number"
+              )
+            )
+          : {};
+
       setStats({
         solvedDates: Array.isArray(parsed.solvedDates) ? parsed.solvedDates : [],
+        completedWithRevealsDates: Array.isArray(
+          parsed.completedWithRevealsDates
+        )
+          ? parsed.completedWithRevealsDates
+          : [],
         bestTimeSeconds:
           typeof parsed.bestTimeSeconds === "number"
             ? parsed.bestTimeSeconds
             : null,
+        cleanSolveTimesByDate,
       });
     } catch {
-      setStats({ solvedDates: [], bestTimeSeconds: null });
+      setStats({
+        solvedDates: [],
+        completedWithRevealsDates: [],
+        bestTimeSeconds: null,
+        cleanSolveTimesByDate: {},
+      });
     }
-  }, []);
-
-  useEffect(() => {
-    if (typeof window === "undefined") {
-      return;
-    }
-
-    const mediaQuery = window.matchMedia("(pointer: coarse)");
-    const updateTouchMode = () => {
-      setUsesTouchKeyboard(mediaQuery.matches);
-    };
-
-    updateTouchMode();
-    mediaQuery.addEventListener("change", updateTouchMode);
-
-    return () => {
-      mediaQuery.removeEventListener("change", updateTouchMode);
-    };
   }, []);
 
   const evaluateCorrectWords = useCallback(
@@ -174,6 +181,7 @@ export default function CrosswordGrid({ puzzle }: Props) {
 
   useEffect(() => {
     localStorage.setItem(storageKey, JSON.stringify(userGrid));
+    window.dispatchEvent(new Event(ARCHIVE_EVENT));
   }, [storageKey, userGrid]);
 
   useEffect(() => {
@@ -201,22 +209,26 @@ export default function CrosswordGrid({ puzzle }: Props) {
     [isBlackCell, puzzle.cols, puzzle.rows]
   );
 
+  const focusCell = useCallback((row: number, col: number) => {
+    const key = `${row}-${col}`;
+    window.requestAnimationFrame(() => {
+      cellInputRefs.current[key]?.focus();
+      cellInputRefs.current[key]?.select();
+    });
+  }, []);
+
   function handleCellClick(row: number, col: number) {
     if (isBlackCell(row, col)) return;
 
     if (selectedRow === row && selectedCol === col) {
       setDirection((prev) => (prev === "across" ? "down" : "across"));
-      if (usesTouchKeyboard) {
-        mobileInputRef.current?.focus();
-      }
+      focusCell(row, col);
       return;
     }
 
     setSelectedRow(row);
     setSelectedCol(col);
-    if (usesTouchKeyboard) {
-      mobileInputRef.current?.focus();
-    }
+    focusCell(row, col);
   }
 
   function handleSelectClue(
@@ -227,9 +239,7 @@ export default function CrosswordGrid({ puzzle }: Props) {
     setSelectedRow(row);
     setSelectedCol(col);
     setDirection(nextDirection);
-    if (usesTouchKeyboard) {
-      mobileInputRef.current?.focus();
-    }
+    focusCell(row, col);
   }
 
   function clearCheckedCell(row: number, col: number) {
@@ -425,13 +435,16 @@ export default function CrosswordGrid({ puzzle }: Props) {
 
       if (direction === "across") {
         moveSelection(selectedRow, selectedCol + 1);
+        focusCell(selectedRow, selectedCol + 1);
       } else {
         moveSelection(selectedRow + 1, selectedCol);
+        focusCell(selectedRow + 1, selectedCol);
       }
     },
     [
       direction,
       evaluateCorrectWords,
+      focusCell,
       isBlackCell,
       moveSelection,
       revealedCells,
@@ -441,19 +454,12 @@ export default function CrosswordGrid({ puzzle }: Props) {
     ]
   );
 
-  function handleMobileInput(event: FormEvent<HTMLInputElement>) {
-    const rawValue = event.currentTarget.value;
-    const letter = rawValue.slice(-1).toUpperCase();
-    event.currentTarget.value = "";
-
-    if (/^[A-Z]$/.test(letter)) {
-      handleLetterInput(letter);
-    }
-  }
-
   const handleKeyInput = useCallback(
-    (event: { key: string; preventDefault: () => void }) => {
-      if (showWinModal || isBlackCell(selectedRow, selectedCol)) {
+    (event: { key: string; preventDefault: () => void }, row: number, col: number) => {
+      setSelectedRow(row);
+      setSelectedCol(col);
+
+      if (showWinModal || isBlackCell(row, col)) {
         return;
       }
 
@@ -466,26 +472,28 @@ export default function CrosswordGrid({ puzzle }: Props) {
       if (event.key === "Backspace") {
         event.preventDefault();
 
-        if (revealedCells.has(`${selectedRow}-${selectedCol}`)) {
+        if (revealedCells.has(`${row}-${col}`)) {
           return;
         }
 
-        if (userGrid[selectedRow][selectedCol]) {
+        if (userGrid[row][col]) {
           setUserGrid((prev) => {
             const next = prev.map((row) => [...row]);
-            next[selectedRow][selectedCol] = "";
+            next[row][col] = "";
             evaluateCorrectWords(next);
             return next;
           });
         } else if (direction === "across") {
-          moveSelection(selectedRow, selectedCol - 1);
+          moveSelection(row, col - 1);
+          focusCell(row, col - 1);
         } else {
-          moveSelection(selectedRow - 1, selectedCol);
+          moveSelection(row - 1, col);
+          focusCell(row - 1, col);
         }
 
-        clearCheckedCell(selectedRow, selectedCol);
-        clearRevealedCell(selectedRow, selectedCol);
-        clearRevealedWord(selectedRow, selectedCol, direction);
+        clearCheckedCell(row, col);
+        clearRevealedCell(row, col);
+        clearRevealedWord(row, col, direction);
         return;
       }
 
@@ -497,72 +505,67 @@ export default function CrosswordGrid({ puzzle }: Props) {
 
       if (event.key === "ArrowRight") {
         event.preventDefault();
-        moveSelection(selectedRow, selectedCol + 1);
+        moveSelection(row, col + 1);
+        focusCell(row, col + 1);
         return;
       }
 
       if (event.key === "ArrowLeft") {
         event.preventDefault();
-        moveSelection(selectedRow, selectedCol - 1);
+        moveSelection(row, col - 1);
+        focusCell(row, col - 1);
         return;
       }
 
       if (event.key === "ArrowDown") {
         event.preventDefault();
-        moveSelection(selectedRow + 1, selectedCol);
+        moveSelection(row + 1, col);
+        focusCell(row + 1, col);
         return;
       }
 
       if (event.key === "ArrowUp") {
         event.preventDefault();
-        moveSelection(selectedRow - 1, selectedCol);
+        moveSelection(row - 1, col);
+        focusCell(row - 1, col);
       }
     },
     [
       direction,
       evaluateCorrectWords,
+      focusCell,
       handleLetterInput,
       isBlackCell,
       moveSelection,
       revealedCells,
-      selectedCol,
-      selectedRow,
       showWinModal,
       userGrid,
     ]
   );
 
-  useEffect(() => {
-    function onWindowKeyDown(event: globalThis.KeyboardEvent) {
-      if (usesTouchKeyboard) {
+  const handleCellInputChange = useCallback(
+    (event: ChangeEvent<HTMLInputElement>, row: number, col: number) => {
+      const letter = event.currentTarget.value.slice(-1).toUpperCase();
+      setSelectedRow(row);
+      setSelectedCol(col);
+
+      if (/^[A-Z]$/.test(letter)) {
+        handleLetterInput(letter);
         return;
       }
 
-      const activeElement = document.activeElement;
-      const isTypingIntoField =
-        activeElement instanceof HTMLInputElement ||
-        activeElement instanceof HTMLTextAreaElement ||
-        activeElement instanceof HTMLSelectElement ||
-        (activeElement instanceof HTMLElement &&
-          activeElement.isContentEditable);
-
-      if (isTypingIntoField && activeElement !== mobileInputRef.current) {
-        return;
+      if (letter === "") {
+        setUserGrid((prev) => {
+          const next = prev.map((currentRow) => [...currentRow]);
+          next[row][col] = "";
+          evaluateCorrectWords(next);
+          return next;
+        });
+        clearCheckedCell(row, col);
       }
-
-      if (activeElement === mobileInputRef.current) {
-        return;
-      }
-
-      handleKeyInput(event);
-    }
-
-    window.addEventListener("keydown", onWindowKeyDown);
-    return () => window.removeEventListener("keydown", onWindowKeyDown);
-  }, [
-    handleKeyInput,
-    usesTouchKeyboard,
-  ]);
+    },
+    [evaluateCorrectWords, handleLetterInput]
+  );
 
   const isComplete = useMemo(() => {
     if (puzzle.clues.across.length + puzzle.clues.down.length === 0) {
@@ -588,32 +591,75 @@ export default function CrosswordGrid({ puzzle }: Props) {
     setShowWinModal(true);
     setHasShownWin(true);
 
-    if (revealedCells.size > 0) {
-      return;
+    const hasReveals = revealedCells.size > 0;
+    const cleanSolveTimesByDate = { ...stats.cleanSolveTimesByDate };
+    const completedWithRevealsDates = hasReveals
+      ? stats.solvedDates.includes(puzzle.date)
+        ? stats.completedWithRevealsDates.filter((date) => date !== puzzle.date)
+        : Array.from(
+            new Set([...stats.completedWithRevealsDates, puzzle.date])
+          ).sort()
+      : stats.completedWithRevealsDates.filter((date) => date !== puzzle.date);
+
+    const solvedDates = hasReveals
+      ? stats.solvedDates
+      : stats.solvedDates.includes(puzzle.date)
+        ? stats.solvedDates
+        : [...stats.solvedDates, puzzle.date].sort();
+
+    if (!hasReveals) {
+      cleanSolveTimesByDate[puzzle.date] =
+        typeof cleanSolveTimesByDate[puzzle.date] === "number"
+          ? Math.min(cleanSolveTimesByDate[puzzle.date], elapsedSeconds)
+          : elapsedSeconds;
     }
 
-    const solvedDates = stats.solvedDates.includes(puzzle.date)
-      ? stats.solvedDates
-      : [...stats.solvedDates, puzzle.date].sort();
-
+    const bestTimeCandidates = Object.values(cleanSolveTimesByDate);
     const nextStats: CrosswordStats = {
       solvedDates,
+      completedWithRevealsDates,
       bestTimeSeconds:
-        stats.bestTimeSeconds === null
-          ? elapsedSeconds
-          : Math.min(stats.bestTimeSeconds, elapsedSeconds),
+        bestTimeCandidates.length > 0 ? Math.min(...bestTimeCandidates) : null,
+      cleanSolveTimesByDate,
     };
 
     setStats(nextStats);
     localStorage.setItem(STATS_KEY, JSON.stringify(nextStats));
+    window.dispatchEvent(new Event(ARCHIVE_EVENT));
   }, [elapsedSeconds, hasShownWin, isComplete, puzzle.date, revealedCells.size, stats]);
 
-function formatTime(totalSeconds: number) {
+  function formatTime(totalSeconds: number) {
     const mins = Math.floor(totalSeconds / 60);
     const secs = totalSeconds % 60;
     return `${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
   }
 
+  function buildShareGridSafe() {
+    const blackSquare = "\u2B1B";
+    const revealedSquare = "\uD83D\uDFE8";
+    const solvedSquare = "\uD83D\uDFE9";
+
+    return puzzle.grid
+      .map((row, rowIndex) =>
+        row
+          .map((cell, colIndex) => {
+            if (cell === "#") {
+              return blackSquare;
+            }
+
+            if (revealedCells.has(`${rowIndex}-${colIndex}`)) {
+              return revealedSquare;
+            }
+
+            return solvedSquare;
+          })
+          .join("")
+      )
+      .join("\n");
+  }
+
+  // Legacy helper kept temporarily while cleaning old encoded source text.
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   function buildShareGrid() {
     return puzzle.grid
       .map((row, rowIndex) =>
@@ -638,7 +684,7 @@ function formatTime(totalSeconds: number) {
     const text = [
       `Letterbeat ${puzzle.date}`,
       `Solved in ${formatTime(elapsedSeconds)}`,
-      buildShareGrid(),
+      buildShareGridSafe(),
     ].join("\n");
 
     try {
@@ -745,29 +791,7 @@ function formatTime(totalSeconds: number) {
               </div>
 
               <section className="flex justify-center rounded-[28px] border border-[var(--line)] bg-[var(--card-muted)] p-4 sm:p-5">
-                <div
-                  className="relative inline-block rounded-[24px] border border-[var(--line-strong)] bg-[var(--surface)] p-2 shadow-[0_12px_24px_rgba(18,31,53,0.06)] sm:p-3"
-                  onClick={() => {
-                    if (usesTouchKeyboard) {
-                      mobileInputRef.current?.focus();
-                    }
-                  }}
-                >
-                  {usesTouchKeyboard && (
-                    <input
-                      ref={mobileInputRef}
-                      type="text"
-                      inputMode="text"
-                      autoCapitalize="characters"
-                      autoCorrect="off"
-                      autoComplete="off"
-                      spellCheck={false}
-                      enterKeyHint="next"
-                      aria-label="Crossword input"
-                      className="absolute inset-0 z-0 opacity-0"
-                      onInput={handleMobileInput}
-                    />
-                  )}
+                <div className="relative inline-block rounded-[24px] border border-[var(--line-strong)] bg-[var(--surface)] p-2 shadow-[0_12px_24px_rgba(18,31,53,0.06)] sm:p-3">
                   {puzzle.grid.map((row, rowIndex) => (
                     <div key={rowIndex} className="flex">
                       {row.map((cell, colIndex) => {
@@ -789,10 +813,8 @@ function formatTime(totalSeconds: number) {
                         );
 
                         return (
-                          <button
+                          <div
                             key={cellKey}
-                            type="button"
-                            onClick={() => handleCellClick(rowIndex, colIndex)}
                             className={[
                               "relative flex h-12 w-12 items-center justify-center border text-lg font-black uppercase transition-all duration-150 ease-out sm:h-14 sm:w-14",
                               isBlack
@@ -812,7 +834,6 @@ function formatTime(totalSeconds: number) {
                                 : "",
                               isCorrect ? "bg-[var(--success)] text-[var(--accent-contrast)]" : "",
                               isWrong ? "bg-[var(--danger)] text-[var(--accent-contrast)]" : "",
-                              !isBlack ? "hover:bg-[var(--accent-soft)]" : "",
                             ].join(" ")}
                           >
                             {!isBlack && cellNumber !== null && (
@@ -821,13 +842,37 @@ function formatTime(totalSeconds: number) {
                               </span>
                             )}
                             {!isBlack ? (
-                              <span className="text-[color:inherit]">
-                                {userGrid[rowIndex]?.[colIndex] ?? ""}
-                              </span>
+                              <input
+                                ref={(node) => {
+                                  cellInputRefs.current[cellKey] = node;
+                                }}
+                                type="text"
+                                inputMode="text"
+                                autoCapitalize="characters"
+                                autoCorrect="off"
+                                autoComplete="off"
+                                spellCheck={false}
+                                maxLength={1}
+                                value={userGrid[rowIndex]?.[colIndex] ?? ""}
+                                readOnly={isRevealed}
+                                aria-label={`Row ${rowIndex + 1} Column ${colIndex + 1}`}
+                                onClick={() => handleCellClick(rowIndex, colIndex)}
+                                onFocus={() => {
+                                  setSelectedRow(rowIndex);
+                                  setSelectedCol(colIndex);
+                                }}
+                                onChange={(event) =>
+                                  handleCellInputChange(event, rowIndex, colIndex)
+                                }
+                                onKeyDown={(event) =>
+                                  handleKeyInput(event, rowIndex, colIndex)
+                                }
+                                className="h-full w-full bg-transparent text-center text-[color:inherit] outline-none caret-[var(--accent)]"
+                              />
                             ) : (
                               ""
                             )}
-                          </button>
+                          </div>
                         );
                       })}
                     </div>
@@ -875,6 +920,15 @@ function formatTime(totalSeconds: number) {
               <div>
                 Time: <span className="font-bold">{formatTime(elapsedSeconds)}</span>
               </div>
+            </div>
+
+            <div className="mt-5 rounded-[24px] border border-[var(--line)] bg-[var(--card-muted)] p-4">
+              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[var(--muted)]">
+                Puzzle note
+              </p>
+              <p className="mt-2 text-sm leading-6 text-[var(--ink)]">
+                {puzzle.note}
+              </p>
             </div>
 
             <div className="mt-5 flex justify-center">

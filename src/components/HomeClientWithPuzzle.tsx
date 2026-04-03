@@ -20,12 +20,71 @@ type Props = {
   today: string;
 };
 
-type ArchiveStatus = "fresh" | "started" | "solved";
+type ArchiveStatus =
+  | "fresh"
+  | "started"
+  | "solved"
+  | "completed_with_reveals";
+
+type StoredStats = {
+  solvedDates: string[];
+  completedWithRevealsDates: string[];
+  bestTimeSeconds: number | null;
+  cleanSolveTimesByDate: Record<string, number>;
+};
 
 const THEME_KEY = "letterbeat-theme";
 const STATS_KEY = "crossword-daily-stats-v1";
 const THEME_EVENT = "letterbeat-theme-change";
 const ARCHIVE_EVENT = "letterbeat-archive-change";
+
+function getStoredStatsSnapshot(): StoredStats {
+  if (typeof window === "undefined") {
+    return {
+      solvedDates: [],
+      completedWithRevealsDates: [],
+      bestTimeSeconds: null,
+      cleanSolveTimesByDate: {},
+    };
+  }
+
+  try {
+    const parsed = JSON.parse(
+      window.localStorage.getItem(STATS_KEY) ?? "{}"
+    ) as Partial<StoredStats>;
+
+    const cleanSolveTimesByDate =
+      parsed.cleanSolveTimesByDate &&
+      typeof parsed.cleanSolveTimesByDate === "object"
+        ? Object.fromEntries(
+            Object.entries(parsed.cleanSolveTimesByDate).filter(
+              ([key, value]) => key && typeof value === "number"
+            )
+          )
+        : {};
+
+    return {
+      solvedDates: Array.isArray(parsed.solvedDates) ? parsed.solvedDates : [],
+      completedWithRevealsDates: Array.isArray(
+        parsed.completedWithRevealsDates
+      )
+        ? parsed.completedWithRevealsDates
+        : [],
+      bestTimeSeconds:
+        typeof parsed.bestTimeSeconds === "number"
+          ? parsed.bestTimeSeconds
+          : null,
+      cleanSolveTimesByDate,
+    };
+  } catch {
+    return {
+      solvedDates: [],
+      completedWithRevealsDates: [],
+      bestTimeSeconds: null,
+      cleanSolveTimesByDate: {},
+    };
+  }
+}
 
 function subscribeToTheme(onStoreChange: () => void) {
   if (typeof window === "undefined") {
@@ -73,11 +132,10 @@ function getArchiveStatusesSnapshot(
   }
 
   try {
-    const parsedStats = JSON.parse(
-      window.localStorage.getItem(STATS_KEY) ?? '{"solvedDates":[]}'
-    ) as { solvedDates?: string[] };
-    const solvedDates = new Set(
-      Array.isArray(parsedStats.solvedDates) ? parsedStats.solvedDates : []
+    const parsedStats = getStoredStatsSnapshot();
+    const solvedDates = new Set(parsedStats.solvedDates);
+    const completedWithRevealsDates = new Set(
+      parsedStats.completedWithRevealsDates
     );
 
     const nextStatuses: Record<string, ArchiveStatus> = {};
@@ -85,6 +143,11 @@ function getArchiveStatusesSnapshot(
     for (const entry of archive) {
       if (solvedDates.has(entry.date)) {
         nextStatuses[entry.date] = "solved";
+        continue;
+      }
+
+      if (completedWithRevealsDates.has(entry.date)) {
+        nextStatuses[entry.date] = "completed_with_reveals";
         continue;
       }
 
@@ -131,6 +194,12 @@ function formatLongDate(date: string) {
   });
 }
 
+function formatTime(totalSeconds: number) {
+  const mins = Math.floor(totalSeconds / 60);
+  const secs = totalSeconds % 60;
+  return `${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
+}
+
 export default function HomeClientWithPuzzle({
   archive,
   puzzle,
@@ -140,6 +209,12 @@ export default function HomeClientWithPuzzle({
   const [archiveStatuses, setArchiveStatuses] = useState<
     Record<string, ArchiveStatus>
   >({});
+  const [statsSummary, setStatsSummary] = useState<StoredStats>({
+    solvedDates: [],
+    completedWithRevealsDates: [],
+    bestTimeSeconds: null,
+    cleanSolveTimesByDate: {},
+  });
   const theme = useSyncExternalStore(
     subscribeToTheme,
     getThemeSnapshot,
@@ -156,6 +231,7 @@ export default function HomeClientWithPuzzle({
     const updateStatuses = () => {
       startTransition(() => {
         setArchiveStatuses(getArchiveStatusesSnapshot(archive));
+        setStatsSummary(getStoredStatsSnapshot());
       });
     };
 
@@ -233,6 +309,20 @@ export default function HomeClientWithPuzzle({
       );
     }
 
+    if (status === "completed_with_reveals") {
+      return (
+        <span
+          className={`rounded-full px-2 py-1 text-[0.65rem] font-semibold uppercase tracking-[0.18em] ${
+            isSelected
+              ? "bg-white/18 text-[var(--accent-contrast)]"
+              : "bg-[var(--accent-soft)] text-[var(--accent-strong)]"
+          }`}
+        >
+          With reveals
+        </span>
+      );
+    }
+
     if (status === "started") {
       return (
         <span
@@ -249,6 +339,19 @@ export default function HomeClientWithPuzzle({
 
     return null;
   }
+
+  const cleanSolveCount = statsSummary.solvedDates.length;
+  const revealCompletionCount = statsSummary.completedWithRevealsDates.filter(
+    (date) => !statsSummary.solvedDates.includes(date)
+  ).length;
+  const cleanSolveTimes = Object.values(statsSummary.cleanSolveTimesByDate);
+  const averageCleanTime =
+    cleanSolveTimes.length > 0
+      ? Math.round(
+          cleanSolveTimes.reduce((sum, time) => sum + time, 0) /
+            cleanSolveTimes.length
+        )
+      : null;
 
   return (
     <main className="min-h-screen bg-[radial-gradient(circle_at_top_left,var(--glow-1),transparent_28%),radial-gradient(circle_at_top_right,var(--glow-2),transparent_24%),linear-gradient(180deg,var(--paper),var(--paper-deep))] text-[var(--ink)] transition-colors">
@@ -356,6 +459,56 @@ export default function HomeClientWithPuzzle({
                   automatically.
                 </li>
               </ul>
+            </section>
+
+            <section className="mt-5 rounded-[28px] border border-[var(--line)] bg-[var(--card)] p-5 shadow-[0_16px_40px_rgba(18,31,53,0.06)]">
+              <div className="flex items-center justify-between gap-3">
+                <h3 className="font-[family-name:var(--font-editorial)] text-2xl">
+                  Stats
+                </h3>
+                <span className="rounded-full bg-[var(--accent-soft)] px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-[var(--accent-strong)]">
+                  Your run
+                </span>
+              </div>
+
+              <div className="mt-4 grid grid-cols-2 gap-3">
+                <div className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] px-4 py-3">
+                  <p className="text-[0.7rem] font-semibold uppercase tracking-[0.18em] text-[var(--muted)]">
+                    Clean solves
+                  </p>
+                  <p className="mt-2 font-[family-name:var(--font-editorial)] text-3xl leading-none">
+                    {cleanSolveCount}
+                  </p>
+                </div>
+                <div className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] px-4 py-3">
+                  <p className="text-[0.7rem] font-semibold uppercase tracking-[0.18em] text-[var(--muted)]">
+                    With reveals
+                  </p>
+                  <p className="mt-2 font-[family-name:var(--font-editorial)] text-3xl leading-none">
+                    {revealCompletionCount}
+                  </p>
+                </div>
+                <div className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] px-4 py-3">
+                  <p className="text-[0.7rem] font-semibold uppercase tracking-[0.18em] text-[var(--muted)]">
+                    Best clean
+                  </p>
+                  <p className="mt-2 font-[family-name:var(--font-editorial)] text-3xl leading-none">
+                    {statsSummary.bestTimeSeconds === null
+                      ? "--:--"
+                      : formatTime(statsSummary.bestTimeSeconds)}
+                  </p>
+                </div>
+                <div className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] px-4 py-3">
+                  <p className="text-[0.7rem] font-semibold uppercase tracking-[0.18em] text-[var(--muted)]">
+                    Avg. clean
+                  </p>
+                  <p className="mt-2 font-[family-name:var(--font-editorial)] text-3xl leading-none">
+                    {averageCleanTime === null
+                      ? "--:--"
+                      : formatTime(averageCleanTime)}
+                  </p>
+                </div>
+              </div>
             </section>
 
             <section className="mt-5 rounded-[28px] border border-[var(--line)] bg-[var(--card)] p-5 shadow-[0_16px_40px_rgba(18,31,53,0.06)]">

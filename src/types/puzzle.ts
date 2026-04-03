@@ -17,6 +17,7 @@ export interface Puzzle {
   id: string;
   date: string;
   title: string;
+  note: string;
   rows: number;
   cols: number;
   grid: string[][];
