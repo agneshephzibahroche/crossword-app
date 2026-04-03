@@ -16,6 +16,7 @@ import { ThemeMode } from "@/types/theme";
 
 type Props = {
   archive: PuzzleArchiveEntry[];
+  isArchiveView: boolean;
   puzzle: Puzzle;
   today: string;
 };
@@ -202,6 +203,7 @@ function formatTime(totalSeconds: number) {
 
 export default function HomeClientWithPuzzle({
   archive,
+  isArchiveView,
   puzzle,
   today,
 }: Props) {
@@ -401,7 +403,7 @@ export default function HomeClientWithPuzzle({
               </p>
             </div>
 
-            <NextPuzzleCountdown />
+            <NextPuzzleCountdown isArchiveView={isArchiveView} />
           </div>
         </header>
 

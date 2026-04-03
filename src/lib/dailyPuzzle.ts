@@ -38,12 +38,35 @@ export function getPuzzleForDate(dateKey: string): Puzzle {
   return resolveDate(dateKey);
 }
 
-export function getTodayDateKey() {
+export function getDateKeyForTimeZone(timeZone: string, date = new Date()) {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(date);
+
+  const year = parts.find((part) => part.type === "year")?.value ?? "1970";
+  const month = parts.find((part) => part.type === "month")?.value ?? "01";
+  const day = parts.find((part) => part.type === "day")?.value ?? "01";
+
+  return `${year}-${month}-${day}`;
+}
+
+export function getTodayDateKey(timeZone?: string) {
+  if (timeZone) {
+    return getDateKeyForTimeZone(timeZone);
+  }
+
   return toDateKey(new Date());
 }
 
-export function getPuzzleArchive(selectedDate: string, days = 10) {
-  const today = getTodayDateKey();
+export function getPuzzleArchive(
+  selectedDate: string,
+  days = 10,
+  todayDate = getTodayDateKey()
+) {
+  const today = todayDate;
   const recentWindow =
     days <= RECENT_ARCHIVE_DAYS
       ? new Map(
