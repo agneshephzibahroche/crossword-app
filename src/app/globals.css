@@ -106,12 +106,18 @@
 html,
 body {
   min-height: 100%;
+  background-color: var(--paper-deep);
 }
 
 body {
   margin: 0;
   color: var(--ink);
-  background: linear-gradient(180deg, #fff7ed 0%, #ffe8dd 100%);
+  background-color: var(--paper-deep);
+  background-image:
+    radial-gradient(circle at top left, var(--glow-1), transparent 28%),
+    radial-gradient(circle at top right, var(--glow-2), transparent 24%),
+    linear-gradient(180deg, var(--paper), var(--paper-deep));
+  background-repeat: no-repeat;
   font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
 }
 

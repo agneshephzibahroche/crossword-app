@@ -364,7 +364,7 @@ export default function HomeClientWithPuzzle({
       : null;
 
   return (
-    <main className="min-h-screen bg-[radial-gradient(circle_at_top_left,var(--glow-1),transparent_28%),radial-gradient(circle_at_top_right,var(--glow-2),transparent_24%),linear-gradient(180deg,var(--paper),var(--paper-deep))] text-[var(--ink)] transition-colors">
+    <main className="min-h-[100dvh] bg-transparent text-[var(--ink)] transition-colors">
       <div className="mx-auto max-w-[1180px] px-4 py-5 sm:px-6 lg:px-8">
         <header className="border-y border-[var(--line)] py-5">
           <div className="flex items-start justify-between gap-4">
@@ -393,8 +393,8 @@ export default function HomeClientWithPuzzle({
             </div>
           </div>
 
-          <div className="mt-4 grid gap-3 md:grid-cols-[1.25fr_0.75fr]">
-            <div className="flex min-h-[172px] flex-col justify-center rounded-[24px] border border-[var(--line)] bg-[var(--surface-muted)] px-5 py-5 shadow-[0_12px_28px_rgba(18,31,53,0.06)]">
+          <div className="mt-4">
+            <div className="flex min-h-[132px] flex-col justify-center rounded-[24px] border border-[var(--line)] bg-[var(--surface-muted)] px-5 py-4 shadow-[0_12px_28px_rgba(18,31,53,0.06)]">
               <div className="flex flex-wrap items-center justify-center gap-2 text-center md:justify-start md:text-left">
                 <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[var(--muted)]">
                   {puzzle.date === today
@@ -403,61 +403,12 @@ export default function HomeClientWithPuzzle({
                 </p>
                 {renderStatusBadge(currentStatus, false)}
               </div>
-              <p className="mt-3 text-center font-[family-name:var(--font-editorial)] text-3xl leading-none text-[var(--ink)] md:text-left">
+              <p className="mt-2 text-center font-[family-name:var(--font-editorial)] text-3xl leading-none text-[var(--ink)] md:text-left">
                 {formatLongDate(puzzle.date)}
               </p>
-              <p className="mt-3 text-center text-sm text-[var(--muted)] md:text-left">
+              <p className="mt-2 text-center text-sm text-[var(--muted)] md:text-left">
                 {totalWords} words to solve
               </p>
-            </div>
-
-            <div className="rounded-[24px] border border-[var(--line)] bg-[var(--card)] px-4 py-4 shadow-[0_12px_28px_rgba(18,31,53,0.06)]">
-              <div className="flex items-center justify-between gap-3">
-                <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[var(--muted)]">
-                  Stats
-                </p>
-                <span className="rounded-full bg-[var(--accent-soft)] px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-[var(--accent-strong)]">
-                  Your run
-                </span>
-              </div>
-              <div className="mt-4 grid grid-cols-4 gap-2">
-                <div className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] px-3 py-3">
-                  <p className="text-[0.7rem] font-semibold uppercase tracking-[0.18em] text-[var(--muted)]">
-                    Clean solves
-                  </p>
-                  <p className="mt-2 font-[family-name:var(--font-editorial)] text-2xl leading-none">
-                    {cleanSolveCount}
-                  </p>
-                </div>
-                <div className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] px-3 py-3">
-                  <p className="text-[0.7rem] font-semibold uppercase tracking-[0.18em] text-[var(--muted)]">
-                    With reveals
-                  </p>
-                  <p className="mt-2 font-[family-name:var(--font-editorial)] text-2xl leading-none">
-                    {revealCompletionCount}
-                  </p>
-                </div>
-                <div className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] px-3 py-3">
-                  <p className="text-[0.7rem] font-semibold uppercase tracking-[0.18em] text-[var(--muted)]">
-                    Best clean
-                  </p>
-                  <p className="mt-2 font-[family-name:var(--font-editorial)] text-2xl leading-none">
-                    {statsSummary.bestTimeSeconds === null
-                      ? "--:--"
-                      : formatTime(statsSummary.bestTimeSeconds)}
-                  </p>
-                </div>
-                <div className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] px-3 py-3">
-                  <p className="text-[0.7rem] font-semibold uppercase tracking-[0.18em] text-[var(--muted)]">
-                    Avg. clean
-                  </p>
-                  <p className="mt-2 font-[family-name:var(--font-editorial)] text-2xl leading-none">
-                    {averageCleanTime === null
-                      ? "--:--"
-                      : formatTime(averageCleanTime)}
-                  </p>
-                </div>
-              </div>
             </div>
           </div>
         </header>
@@ -530,6 +481,56 @@ export default function HomeClientWithPuzzle({
 
               <div className="mt-4">
                 <NextPuzzleCountdown isArchiveView={isArchiveView} />
+              </div>
+            </section>
+
+            <section className="mt-5 rounded-[28px] border border-[var(--line)] bg-[var(--card)] p-5 shadow-[0_16px_40px_rgba(18,31,53,0.06)]">
+              <div className="flex items-center justify-between gap-3">
+                <h3 className="font-[family-name:var(--font-editorial)] text-2xl">
+                  Stats
+                </h3>
+                <span className="rounded-full bg-[var(--accent-soft)] px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-[var(--accent-strong)]">
+                  Your run
+                </span>
+              </div>
+
+              <div className="mt-4 grid grid-cols-2 gap-3">
+                <div className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] px-4 py-3">
+                  <p className="text-[0.7rem] font-semibold uppercase tracking-[0.18em] text-[var(--muted)]">
+                    Clean solves
+                  </p>
+                  <p className="mt-2 font-[family-name:var(--font-editorial)] text-3xl leading-none">
+                    {cleanSolveCount}
+                  </p>
+                </div>
+                <div className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] px-4 py-3">
+                  <p className="text-[0.7rem] font-semibold uppercase tracking-[0.18em] text-[var(--muted)]">
+                    With reveals
+                  </p>
+                  <p className="mt-2 font-[family-name:var(--font-editorial)] text-3xl leading-none">
+                    {revealCompletionCount}
+                  </p>
+                </div>
+                <div className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] px-4 py-3">
+                  <p className="text-[0.7rem] font-semibold uppercase tracking-[0.18em] text-[var(--muted)]">
+                    Best clean
+                  </p>
+                  <p className="mt-2 font-[family-name:var(--font-editorial)] text-3xl leading-none">
+                    {statsSummary.bestTimeSeconds === null
+                      ? "--:--"
+                      : formatTime(statsSummary.bestTimeSeconds)}
+                  </p>
+                </div>
+                <div className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] px-4 py-3">
+                  <p className="text-[0.7rem] font-semibold uppercase tracking-[0.18em] text-[var(--muted)]">
+                    Avg. clean
+                  </p>
+                  <p className="mt-2 font-[family-name:var(--font-editorial)] text-3xl leading-none">
+                    {averageCleanTime === null
+                      ? "--:--"
+                      : formatTime(averageCleanTime)}
+                  </p>
+                </div>
               </div>
             </section>
 
