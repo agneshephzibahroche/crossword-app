@@ -539,3 +539,21 @@ export function generateFallbackPuzzle(dateKey: string) {
 
   return generated.puzzle;
 }
+
+export function generateRecentWindow(dateKeys: string[]) {
+  const localCache = new Map<string, GeneratedMeta>();
+
+  for (let index = 0; index < dateKeys.length; index += 1) {
+    const currentDate = dateKeys[index];
+    const previousDates = dateKeys.slice(0, index).reverse();
+    const generated = generateSingleDate(currentDate, previousDates, localCache, {
+      attemptBudget: STRICT_WINDOW_ATTEMPTS,
+      seedSalt: `recent-window:${dateKeys.join("|")}`,
+      requireUniqueClues: true,
+    });
+
+    localCache.set(currentDate, generated);
+  }
+
+  return localCache;
+}

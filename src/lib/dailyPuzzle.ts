@@ -2,6 +2,7 @@ import generatedSchedule from "@/lib/generatedPuzzleSchedule.json";
 import {
   ANCHOR_DATE,
   generateFallbackPuzzle,
+  generateRecentWindow,
   RECENT_ARCHIVE_DAYS,
   shiftDate,
   toDateKey,
@@ -67,19 +68,24 @@ export function getPuzzleArchive(
   todayDate = getTodayDateKey()
 ) {
   const today = todayDate;
+  const recentDates = Array.from(
+    { length: Math.min(days, RECENT_ARCHIVE_DAYS) },
+    (_, index) => shiftDate(today, -index)
+  ).reverse();
   const recentWindow =
     days <= RECENT_ARCHIVE_DAYS
-      ? new Map(
-          Array.from({ length: Math.min(days, RECENT_ARCHIVE_DAYS) }, (_, index) => {
-            const date = shiftDate(today, -index);
-            return [date, resolveDate(date)] as const;
-          })
-        )
+      ? generateRecentWindow(recentDates)
       : null;
+
+  if (recentWindow) {
+    for (const [date, generated] of recentWindow.entries()) {
+      runtimeCache.set(date, generated.puzzle);
+    }
+  }
 
   return Array.from({ length: days }, (_, index) => {
     const date = shiftDate(today, -index);
-    const puzzle = recentWindow?.get(date) ?? getPuzzleForDate(date);
+    const puzzle = recentWindow?.get(date)?.puzzle ?? getPuzzleForDate(date);
 
     return {
       date,
