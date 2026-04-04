@@ -4,7 +4,6 @@ export const samplePuzzle: Puzzle = {
   id: "sample-puzzle",
   date: "2026-03-22",
   title: "mini crossword",
-  note: "A quick sample board for local testing.",
   rows: 5,
   cols: 5,
   grid: [

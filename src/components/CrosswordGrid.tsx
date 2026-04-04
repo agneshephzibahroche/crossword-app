@@ -17,6 +17,11 @@ type CrosswordStats = {
   cleanSolveTimesByDate: Record<string, number>;
 };
 
+type StoredProgress = {
+  grid: string[][];
+  elapsedSeconds: number;
+};
+
 const STATS_KEY = "crossword-daily-stats-v1";
 const ARCHIVE_EVENT = "letterbeat-archive-change";
 
@@ -60,6 +65,7 @@ function computeCorrectWords(
 
 export default function CrosswordGrid({ puzzle }: Props) {
   const cellInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
+  const boardSectionRef = useRef<HTMLDivElement | null>(null);
   const [selectedRow, setSelectedRow] = useState(0);
   const [selectedCol, setSelectedCol] = useState(0);
   const [direction, setDirection] = useState<Direction>("across");
@@ -143,35 +149,53 @@ export default function CrosswordGrid({ puzzle }: Props) {
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
+        const parsedGrid =
+          Array.isArray(parsed)
+            ? parsed
+            : parsed &&
+                typeof parsed === "object" &&
+                Array.isArray(parsed.grid)
+              ? parsed.grid
+              : null;
+        const parsedElapsedSeconds =
+          parsed &&
+          typeof parsed === "object" &&
+          typeof parsed.elapsedSeconds === "number" &&
+          parsed.elapsedSeconds >= 0
+            ? parsed.elapsedSeconds
+            : 0;
 
         if (
-          Array.isArray(parsed) &&
-          parsed.length === puzzle.rows &&
-          parsed.every(
+          Array.isArray(parsedGrid) &&
+          parsedGrid.length === puzzle.rows &&
+          parsedGrid.every(
             (row: unknown) => Array.isArray(row) && row.length === puzzle.cols
           )
         ) {
-          const nextGrid = parsed as string[][];
+          const nextGrid = parsedGrid as string[][];
           setUserGrid(nextGrid);
           setCorrectWords(computeCorrectWords(puzzle, nextGrid, new Set()));
+          setElapsedSeconds(parsedElapsedSeconds);
         } else {
           setUserGrid(emptyGrid);
           setCorrectWords(computeCorrectWords(puzzle, emptyGrid, new Set()));
+          setElapsedSeconds(0);
         }
       } catch {
         setUserGrid(emptyGrid);
         setCorrectWords(computeCorrectWords(puzzle, emptyGrid, new Set()));
+        setElapsedSeconds(0);
       }
     } else {
       setUserGrid(emptyGrid);
       setCorrectWords(computeCorrectWords(puzzle, emptyGrid, new Set()));
+      setElapsedSeconds(0);
     }
 
     setWrongCells(new Set());
     setCorrectCells(new Set());
     setRevealedCells(new Set());
     setRevealedWords(new Set());
-    setElapsedSeconds(0);
     setShowWinModal(false);
     setHasShownWin(false);
     setSelectedRow(0);
@@ -180,9 +204,13 @@ export default function CrosswordGrid({ puzzle }: Props) {
   }, [emptyGrid, puzzle, puzzle.cols, puzzle.rows, storageKey]);
 
   useEffect(() => {
-    localStorage.setItem(storageKey, JSON.stringify(userGrid));
+    const nextProgress: StoredProgress = {
+      grid: userGrid,
+      elapsedSeconds,
+    };
+    localStorage.setItem(storageKey, JSON.stringify(nextProgress));
     window.dispatchEvent(new Event(ARCHIVE_EVENT));
-  }, [storageKey, userGrid]);
+  }, [elapsedSeconds, storageKey, userGrid]);
 
   useEffect(() => {
     evaluateCorrectWords(userGrid);
@@ -239,6 +267,14 @@ export default function CrosswordGrid({ puzzle }: Props) {
     setSelectedRow(row);
     setSelectedCol(col);
     setDirection(nextDirection);
+
+    if (window.matchMedia("(max-width: 1023px)").matches) {
+      boardSectionRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      });
+    }
+
     focusCell(row, col);
   }
 
@@ -318,9 +354,45 @@ export default function CrosswordGrid({ puzzle }: Props) {
     setRevealedWords(new Set());
   }
 
+  function handleRevealLetter() {
+    if (isBlackCell(selectedRow, selectedCol)) {
+      return;
+    }
+
+    const cellKey = `${selectedRow}-${selectedCol}`;
+    const nextRevealedCells = new Set(revealedCells);
+    nextRevealedCells.add(cellKey);
+
+    setUserGrid((prev) => {
+      const next = prev.map((row) => [...row]);
+      next[selectedRow][selectedCol] = puzzle.solution[selectedRow][selectedCol];
+      setCorrectWords(computeCorrectWords(puzzle, next, nextRevealedCells));
+      return next;
+    });
+
+    setRevealedCells(nextRevealedCells);
+
+    setWrongCells((prev) => {
+      const next = new Set(prev);
+      next.delete(cellKey);
+      return next;
+    });
+
+    setCorrectCells((prev) => {
+      const next = new Set(prev);
+      next.delete(cellKey);
+      return next;
+    });
+  }
+
   function handleRevealWord() {
     const cells = getWordCells(puzzle, selectedRow, selectedCol, direction);
     if (cells.length === 0) return;
+
+    const nextRevealedCells = new Set(revealedCells);
+    for (const cell of cells) {
+      nextRevealedCells.add(`${cell.row}-${cell.col}`);
+    }
 
     setUserGrid((prev) => {
       const next = prev.map((row) => [...row]);
@@ -328,16 +400,11 @@ export default function CrosswordGrid({ puzzle }: Props) {
       for (const cell of cells) {
         next[cell.row][cell.col] = puzzle.solution[cell.row][cell.col];
       }
+      setCorrectWords(computeCorrectWords(puzzle, next, nextRevealedCells));
       return next;
     });
 
-    setRevealedCells((prev) => {
-      const next = new Set(prev);
-      for (const cell of cells) {
-        next.add(`${cell.row}-${cell.col}`);
-      }
-      return next;
-    });
+    setRevealedCells(nextRevealedCells);
 
     setRevealedWords((prev) => {
       const next = new Set(prev);
@@ -746,10 +813,42 @@ export default function CrosswordGrid({ puzzle }: Props) {
                       ? `${activeClue.number}. ${activeClue.clue}`
                       : "Select a clue to begin"}
                   </h2>
-                  <p className="mt-2 text-sm text-[var(--muted)]">
-                    {direction === "across" ? "Across" : "Down"} |{" "}
-                    {activeWordCells.length} letters
-                  </p>
+                  <div className="mt-3 flex flex-wrap items-center gap-2">
+                    <span className="rounded-full bg-[var(--card-muted)] px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-[var(--muted)]">
+                      Typing direction
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setDirection("across");
+                        focusCell(selectedRow, selectedCol);
+                      }}
+                      className={`rounded-full border px-3 py-1.5 text-sm font-semibold transition ${
+                        direction === "across"
+                          ? "border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-contrast)] shadow-[0_10px_24px_rgba(163,88,40,0.18)]"
+                          : "border-[var(--line)] bg-[var(--surface)] text-[var(--muted)] hover:border-[var(--accent)]"
+                      }`}
+                    >
+                      Across
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setDirection("down");
+                        focusCell(selectedRow, selectedCol);
+                      }}
+                      className={`rounded-full border px-3 py-1.5 text-sm font-semibold transition ${
+                        direction === "down"
+                          ? "border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-contrast)] shadow-[0_10px_24px_rgba(163,88,40,0.18)]"
+                          : "border-[var(--line)] bg-[var(--surface)] text-[var(--muted)] hover:border-[var(--accent)]"
+                      }`}
+                    >
+                      Down
+                    </button>
+                    <span className="rounded-full bg-[var(--card-muted)] px-3 py-1.5 text-sm font-semibold text-[var(--muted)]">
+                      {activeWordCells.length} letters
+                    </span>
+                  </div>
                 </div>
 
                 <div className="h-2 overflow-hidden rounded-full bg-[var(--card-muted)]">
@@ -763,8 +862,17 @@ export default function CrosswordGrid({ puzzle }: Props) {
               <div className="flex flex-wrap gap-3">
                 <button
                   type="button"
+                  onClick={handleRevealLetter}
+                  className="rounded-full border border-[var(--action-button-border)] bg-[var(--action-button-bg)] px-4 py-2 text-sm font-semibold text-[var(--action-button-text)] shadow-[var(--button-shadow)] transition hover:-translate-y-0.5 hover:border-[var(--accent)] hover:bg-[var(--action-button-hover)] hover:text-[var(--action-button-active-text)] active:translate-y-0 active:bg-[var(--action-button-active)] active:text-[var(--action-button-active-text)] active:shadow-[var(--button-shadow-pressed),var(--button-shadow)]"
+                  style={{ boxShadow: "var(--button-highlight), var(--button-shadow)" }}
+                >
+                  Reveal letter
+                </button>
+
+                <button
+                  type="button"
                   onClick={handleCheckAnswers}
-                  className="rounded-full border border-transparent bg-[var(--button-primary-bg)] px-4 py-2 text-sm font-semibold text-[var(--button-primary-text)] shadow-[var(--button-shadow)] transition hover:-translate-y-0.5 hover:bg-[var(--button-primary-hover)] active:translate-y-0 active:text-black active:shadow-[var(--button-shadow-pressed),var(--button-shadow)]"
+                  className="rounded-full border border-[var(--action-button-border)] bg-[var(--action-button-bg)] px-4 py-2 text-sm font-semibold text-[var(--action-button-text)] shadow-[var(--button-shadow)] transition hover:-translate-y-0.5 hover:border-[var(--accent)] hover:bg-[var(--action-button-hover)] hover:text-[var(--action-button-active-text)] active:translate-y-0 active:bg-[var(--action-button-active)] active:text-[var(--action-button-active-text)] active:shadow-[var(--button-shadow-pressed),var(--button-shadow)]"
                   style={{ boxShadow: "var(--button-highlight), var(--button-shadow)" }}
                 >
                   Check letters
@@ -773,7 +881,7 @@ export default function CrosswordGrid({ puzzle }: Props) {
                 <button
                   type="button"
                   onClick={handleRevealWord}
-                  className="rounded-full border border-[var(--button-secondary-border)] bg-[var(--button-secondary-bg)] px-4 py-2 text-sm font-semibold text-[var(--button-secondary-text)] shadow-[var(--button-shadow)] transition hover:-translate-y-0.5 hover:border-[var(--accent)] hover:bg-[var(--button-secondary-hover)] active:translate-y-0 active:text-black active:shadow-[var(--button-shadow-pressed),var(--button-shadow)]"
+                  className="rounded-full border border-[var(--action-button-border)] bg-[var(--action-button-bg)] px-4 py-2 text-sm font-semibold text-[var(--action-button-text)] shadow-[var(--button-shadow)] transition hover:-translate-y-0.5 hover:border-[var(--accent)] hover:bg-[var(--action-button-hover)] hover:text-[var(--action-button-active-text)] active:translate-y-0 active:bg-[var(--action-button-active)] active:text-[var(--action-button-active-text)] active:shadow-[var(--button-shadow-pressed),var(--button-shadow)]"
                   style={{ boxShadow: "var(--button-highlight), var(--button-shadow)" }}
                 >
                   Reveal word
@@ -782,7 +890,7 @@ export default function CrosswordGrid({ puzzle }: Props) {
                 <button
                   type="button"
                   onClick={clearGrid}
-                  className="rounded-full border border-[var(--button-secondary-border)] bg-[var(--button-secondary-bg)] px-4 py-2 text-sm font-semibold text-[var(--button-secondary-text)] shadow-[var(--button-shadow)] transition hover:-translate-y-0.5 hover:border-[var(--line)] hover:bg-[var(--button-secondary-hover)] active:translate-y-0 active:text-black active:shadow-[var(--button-shadow-pressed),var(--button-shadow)]"
+                  className="rounded-full border border-[var(--action-button-border)] bg-[var(--action-button-bg)] px-4 py-2 text-sm font-semibold text-[var(--action-button-text)] shadow-[var(--button-shadow)] transition hover:-translate-y-0.5 hover:border-[var(--line)] hover:bg-[var(--action-button-hover)] hover:text-[var(--action-button-active-text)] active:translate-y-0 active:bg-[var(--action-button-active)] active:text-[var(--action-button-active-text)] active:shadow-[var(--button-shadow-pressed),var(--button-shadow)]"
                   style={{ boxShadow: "var(--button-highlight), var(--button-shadow)" }}
                 >
                   Clear board
@@ -790,7 +898,10 @@ export default function CrosswordGrid({ puzzle }: Props) {
 
               </div>
 
-              <section className="flex justify-center rounded-[28px] border border-[var(--line)] bg-[var(--card-muted)] p-4 sm:p-5">
+              <section
+                ref={boardSectionRef}
+                className="flex justify-center rounded-[28px] border border-[var(--line)] bg-[var(--card-muted)] p-4 sm:p-5"
+              >
                 <div className="relative inline-block rounded-[24px] border border-[var(--line-strong)] bg-[var(--surface)] p-2 shadow-[0_12px_24px_rgba(18,31,53,0.06)] sm:p-3">
                   {puzzle.grid.map((row, rowIndex) => (
                     <div key={rowIndex} className="flex">
@@ -920,15 +1031,6 @@ export default function CrosswordGrid({ puzzle }: Props) {
               <div>
                 Time: <span className="font-bold">{formatTime(elapsedSeconds)}</span>
               </div>
-            </div>
-
-            <div className="mt-5 rounded-[24px] border border-[var(--line)] bg-[var(--card-muted)] p-4">
-              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[var(--muted)]">
-                Puzzle note
-              </p>
-              <p className="mt-2 text-sm leading-6 text-[var(--ink)]">
-                {puzzle.note}
-              </p>
             </div>
 
             <div className="mt-5 flex justify-center">

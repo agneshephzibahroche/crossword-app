@@ -32,6 +32,28 @@
     "Libre Baskerville", Georgia, serif;
 }
 
+:root {
+  --button-secondary-bg: var(--surface);
+  --button-secondary-hover: var(--card-muted);
+  --button-secondary-border: var(--line-strong);
+  --button-secondary-text: var(--ink);
+  --button-secondary-active: var(--surface-hover);
+  --button-primary-bg: var(--ink);
+  --button-primary-hover: var(--ink-soft);
+  --button-primary-active: var(--ink-soft);
+  --button-primary-text: #ffffff;
+  --button-active-text: #ffffff;
+  --button-shadow: 0 10px 22px rgba(36, 22, 61, 0.12);
+  --button-shadow-pressed: inset 0 2px 4px rgba(0, 0, 0, 0.12);
+  --button-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.5);
+  --action-button-bg: var(--button-secondary-bg);
+  --action-button-hover: var(--button-secondary-hover);
+  --action-button-active: var(--button-secondary-active);
+  --action-button-border: var(--button-secondary-border);
+  --action-button-text: var(--button-secondary-text);
+  --action-button-active-text: var(--button-active-text);
+}
+
 [data-theme="dark"] {
   --paper: #0f1025;
   --paper-deep: #18143a;
@@ -60,29 +82,25 @@
   --cell-bg: #2d2760;
   --cell-text: #fff8ff;
   --black-cell: #090713;
-  --button-secondary-bg: #31286b;
-  --button-secondary-hover: #3c3182;
-  --button-secondary-border: rgba(255, 214, 235, 0.34);
-  --button-secondary-text: #fff8ff;
+  --button-secondary-bg: #ff9f72;
+  --button-secondary-hover: #ffb088;
+  --button-secondary-border: rgba(255, 184, 145, 0.72);
+  --button-secondary-text: #1c102f;
+  --button-secondary-active: #ffc6a7;
   --button-primary-bg: #ff8a5b;
   --button-primary-hover: #ff5db1;
+  --button-primary-active: #ffd0a6;
   --button-primary-text: #180f2d;
+  --button-active-text: #120a24;
   --button-shadow: 0 12px 26px rgba(4, 6, 18, 0.34);
   --button-shadow-pressed: inset 0 2px 4px rgba(0, 0, 0, 0.28);
   --button-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.08);
-}
-
-:root {
-  --button-secondary-bg: var(--surface);
-  --button-secondary-hover: var(--card-muted);
-  --button-secondary-border: var(--line-strong);
-  --button-secondary-text: var(--ink);
-  --button-primary-bg: var(--ink);
-  --button-primary-hover: var(--ink-soft);
-  --button-primary-text: #ffffff;
-  --button-shadow: 0 10px 22px rgba(36, 22, 61, 0.12);
-  --button-shadow-pressed: inset 0 2px 4px rgba(0, 0, 0, 0.12);
-  --button-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.5);
+  --action-button-bg: #ff9f72;
+  --action-button-hover: #ffb088;
+  --action-button-active: #ffc6a7;
+  --action-button-border: rgba(255, 184, 145, 0.72);
+  --action-button-text: #1c102f;
+  --action-button-active-text: #120a24;
 }
 
 html,

@@ -669,12 +669,45 @@ const RAW_DICTIONARY: RawDictionaryEntry[] = [
   { word: "TUNER", clue: "Radio dial component" },
   { word: "URBAN", clue: "City-based" },
   { word: "VENUE", clue: "Place for an event" },
+  { word: "BAKER", clue: "Bread maker" },
+  { word: "BLUSH", clue: "Turn pink from embarrassment" },
+  { word: "BROOK", clue: "Small stream" },
+  { word: "CREAM", clue: "Rich dairy topping" },
+  { word: "CREEK", clue: "Small winding stream" },
+  { word: "EAGLE", clue: "Majestic bird of prey" },
+  { word: "FABLE", clue: "Short moral tale" },
+  { word: "FEAST", clue: "Big celebratory meal" },
+  { word: "FIBER", clue: "Nutrient in whole grains" },
+  { word: "GLAZE", clue: "Shiny coating on a pastry" },
+  { word: "HIKER", clue: "Trail walker" },
+  { word: "JELLY", clue: "Wobbly fruit spread" },
+  { word: "KOALA", clue: "Sleepy eucalyptus eater" },
+  { word: "LASER", clue: "Focused beam of light" },
+  { word: "LOFTY", clue: "Noble or elevated" },
+  { word: "MINTY", clue: "Like some toothpaste" },
+  { word: "NESTS", clue: "Bird homes" },
+  { word: "OASIS", clue: "Desert water spot" },
+  { word: "QUILT", clue: "Stitched bed cover" },
+  { word: "RANCH", clue: "Large cattle farm" },
+  { word: "RIDGE", clue: "Long narrow hilltop" },
+  { word: "RIPEN", clue: "Become ready to eat" },
+  { word: "SNACK", clue: "Quick bite between meals" },
+  { word: "SOLAR", clue: "Powered by the sun" },
+  { word: "SPARK", clue: "Tiny flash" },
+  { word: "SPRIG", clue: "Small stem or twig" },
+  { word: "TANGO", clue: "Partner dance from Argentina" },
+  { word: "TIDAL", clue: "Related to ocean rise and fall" },
+  { word: "UNION", clue: "Joined group" },
+  { word: "VAULT", clue: "Secure room for valuables" },
+  { word: "VIVID", clue: "Bright and intense" },
   { word: "WAVES", clue: "Ocean rollers" },
+  { word: "WAFER", clue: "Thin crisp cookie" },
   { word: "WHEAT", clue: "Grain used in flour" },
   { word: "WHISK", clue: "Kitchen tool for beating eggs" },
   { word: "WOODS", clue: "Forest area" },
   { word: "WOVEN", clue: "Made on a loom" },
   { word: "YEAST", clue: "Bread-rising ingredient" },
+  { word: "YOUNG", clue: "Not yet old" },
 ];
 
 function hashString(value: string) {
@@ -689,19 +722,23 @@ function hashString(value: string) {
 }
 
 function inferQuality(word: string) {
-  if (word.length >= 5) {
+  if (word.length === 5) {
+    return 9;
+  }
+
+  if (word.length >= 6) {
     return 8;
   }
 
   if (word.length === 4) {
-    return 7;
-  }
-
-  if (word.length === 3) {
     return 6;
   }
 
-  return 3;
+  if (word.length === 3) {
+    return 5;
+  }
+
+  return 2;
 }
 
 function buildTags(word: string, override?: DictionaryOverride) {

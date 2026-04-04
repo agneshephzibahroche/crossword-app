@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Daily Crossword",
-  description: "A newspaper-inspired daily crossword game with archived puzzles.",
+  title: "Letterbeat",
+  description: "A lively daily crossword game with fresh 5x5 puzzles and archived play.",
 };
 
 export default function RootLayout({

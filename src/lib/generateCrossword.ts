@@ -14,7 +14,6 @@ type RawPuzzle = {
   id: string;
   date: string;
   title: string;
-  note?: string;
   rows: number;
   cols: number;
   grid: string[][];
@@ -52,7 +51,6 @@ function processClues(puzzle: RawPuzzle): Puzzle {
 
   return {
     ...puzzle,
-    note: puzzle.note ?? "A compact crossword with a fast, friendly solve.",
     clues: {
       across: process(puzzle.clues.across),
       down: process(puzzle.clues.down),

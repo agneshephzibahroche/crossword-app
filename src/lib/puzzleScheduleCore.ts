@@ -16,13 +16,6 @@ export type GeneratedMeta = {
   puzzle: Puzzle;
 };
 
-type PuzzleClueMeta = {
-  number: number;
-  clue: string;
-  answer: string;
-  direction: "across" | "down";
-};
-
 type GenerateOptions = {
   attemptBudget?: number;
   seedSalt?: string;
@@ -82,6 +75,39 @@ const PATTERN_TEMPLATES: PatternTemplate[] = [
       ["", "", "", "", ""],
       ["#", "", "#", "", "#"],
       ["", "", "", "", ""],
+    ],
+  },
+  {
+    id: "corners",
+    title: "Corner Turn",
+    grid: [
+      ["", "", "", "#", ""],
+      ["", "#", "", "", ""],
+      ["", "", "", "", ""],
+      ["#", "", "", "#", ""],
+      ["", "", "", "", ""],
+    ],
+  },
+  {
+    id: "zigzag",
+    title: "Zigzag Grid",
+    grid: [
+      ["", "", "#", "", ""],
+      ["", "", "", "", "#"],
+      ["#", "", "", "", ""],
+      ["", "", "", "", "#"],
+      ["", "", "#", "", ""],
+    ],
+  },
+  {
+    id: "lanes",
+    title: "Lanes Grid",
+    grid: [
+      ["", "", "", "", ""],
+      ["", "#", "", "", ""],
+      ["", "", "", "#", ""],
+      ["", "", "", "", ""],
+      ["", "", "#", "", ""],
     ],
   },
 ];
@@ -200,18 +226,22 @@ function restoreWord(grid: string[][], slot: Slot, previous: string[]) {
   });
 }
 
-function buildPuzzleNote(pattern: PatternTemplate, entries: PuzzleClueMeta[]) {
-  const standout =
-    [...entries].sort(
-      (left, right) =>
-        right.answer.length - left.answer.length || left.number - right.number
-    )[0] ?? entries[0];
+function getPreferredPatternOrder(dateKey: string, seedSalt: string) {
+  const baseIndex = hashString(`${dateKey}:${seedSalt}:pattern`) % PATTERN_TEMPLATES.length;
+  const rotated = Array.from({ length: PATTERN_TEMPLATES.length }, (_, index) => {
+    return PATTERN_TEMPLATES[(baseIndex + index) % PATTERN_TEMPLATES.length];
+  });
 
-  if (!standout) {
-    return "A compact 5x5 with quick crossings and a fast finish.";
-  }
+  const leadPatternId = PATTERN_TEMPLATES[baseIndex]?.id;
+  const shuffledTail = shuffleWithSeed(
+    rotated.slice(1),
+    `${dateKey}:${seedSalt}:tail`
+  );
 
-  return `A tight ${pattern.title.toLowerCase()} built around ${standout.number}-${standout.direction[0].toUpperCase()}, a ${standout.answer.length}-letter entry that helps open the middle of the grid.`;
+  return [
+    rotated[0],
+    ...shuffledTail.filter((pattern) => pattern.id !== leadPatternId),
+  ];
 }
 
 function selectSlots(
@@ -348,10 +378,6 @@ function buildPuzzle(dateKey: string, pattern: PatternTemplate, seed: string) {
     .sort()
     .join("|");
   const clueList = [...across, ...down].map((entry) => entry.clue);
-  const note = buildPuzzleNote(pattern, [
-    ...across.map((entry) => ({ ...entry, direction: "across" as const })),
-    ...down.map((entry) => ({ ...entry, direction: "down" as const })),
-  ]);
 
   return {
     patternId: pattern.id,
@@ -362,7 +388,6 @@ function buildPuzzle(dateKey: string, pattern: PatternTemplate, seed: string) {
       id: `${dateKey}-${pattern.id}-${hashString(signature).toString(16)}`,
       date: dateKey,
       title: `${pattern.title} #${(hashString(seed) % 900) + 100}`,
-      note,
       rows: 5,
       cols: 5,
       grid,
@@ -419,7 +444,10 @@ export function generateSingleDate(
 
   for (let attempt = 0; attempt < attemptBudget; attempt += 1) {
     const attemptSeed = `${dateKey}:${seedSalt}:${attempt}`;
-    const orderedPatterns = shuffleWithSeed(PATTERN_TEMPLATES, attemptSeed);
+    const orderedPatterns =
+      attempt === 0
+        ? getPreferredPatternOrder(dateKey, seedSalt)
+        : shuffleWithSeed(PATTERN_TEMPLATES, attemptSeed);
 
     for (const pattern of orderedPatterns) {
       const candidate = buildPuzzle(
