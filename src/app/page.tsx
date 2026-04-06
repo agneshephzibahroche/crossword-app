@@ -2,6 +2,7 @@ import HomeClientWithPuzzle from "@/components/HomeClientWithPuzzle";
 import {
   getPuzzleArchive,
   getPuzzleForDate,
+  seedRecentWindow,
   getTodayDateKey,
 } from "@/lib/dailyPuzzle";
 import { headers } from "next/headers";
@@ -25,6 +26,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
     requestedDate && /^\d{4}-\d{2}-\d{2}$/.test(requestedDate)
       ? requestedDate
       : today;
+  seedRecentWindow(today, 3);
 
   return (
     <HomeClientWithPuzzle

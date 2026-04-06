@@ -23,6 +23,20 @@ const runtimeCache = new Map<string, Puzzle>();
 
 export type { PuzzleArchiveEntry };
 
+export function seedRecentWindow(todayDate: string, days = RECENT_ARCHIVE_DAYS) {
+  const recentDates = Array.from(
+    { length: Math.min(days, RECENT_ARCHIVE_DAYS) },
+    (_, index) => shiftDate(todayDate, -index)
+  ).reverse();
+  const recentWindow = generateRecentWindow(recentDates);
+
+  for (const [date, generated] of recentWindow.entries()) {
+    runtimeCache.set(date, generated.puzzle);
+  }
+
+  return recentWindow;
+}
+
 function resolveDate(dateKey: string): Puzzle {
   return (
     SCHEDULE[dateKey] ??
@@ -68,20 +82,8 @@ export function getPuzzleArchive(
   todayDate = getTodayDateKey()
 ) {
   const today = todayDate;
-  const recentDates = Array.from(
-    { length: Math.min(days, RECENT_ARCHIVE_DAYS) },
-    (_, index) => shiftDate(today, -index)
-  ).reverse();
   const recentWindow =
-    days <= RECENT_ARCHIVE_DAYS
-      ? generateRecentWindow(recentDates)
-      : null;
-
-  if (recentWindow) {
-    for (const [date, generated] of recentWindow.entries()) {
-      runtimeCache.set(date, generated.puzzle);
-    }
-  }
+    days <= RECENT_ARCHIVE_DAYS ? seedRecentWindow(today, days) : null;
 
   return Array.from({ length: days }, (_, index) => {
     const date = shiftDate(today, -index);
