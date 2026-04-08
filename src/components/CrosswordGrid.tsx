@@ -108,6 +108,20 @@ function computeCheckedCells(puzzle: Puzzle, gridToCheck: string[][]) {
   return { correct, wrong };
 }
 
+function areSetsEqual(left: Set<string>, right: Set<string>) {
+  if (left.size !== right.size) {
+    return false;
+  }
+
+  for (const value of left) {
+    if (!right.has(value)) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
 export default function CrosswordGrid({
   immediateChecks = false,
   puzzle,
@@ -121,7 +135,6 @@ export default function CrosswordGrid({
   const [usesTouchKeyboard, setUsesTouchKeyboard] = useState(false);
   const [wrongCells, setWrongCells] = useState<Set<string>>(new Set());
   const [correctCells, setCorrectCells] = useState<Set<string>>(new Set());
-  const [correctWords, setCorrectWords] = useState<Set<string>>(new Set());
   const [revealedCells, setRevealedCells] = useState<Set<string>>(new Set());
   const [revealedWords, setRevealedWords] = useState<Set<string>>(new Set());
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
@@ -138,13 +151,9 @@ export default function CrosswordGrid({
   const storageKey = `daily-crossword-progress-${puzzle.id}`;
   const emptyGrid = useMemo(
     () => puzzle.grid.map((row) => row.map((cell) => (cell === "#" ? "#" : ""))),
-    [puzzle.grid]
+    [puzzle.id]
   );
   const [userGrid, setUserGrid] = useState<string[][]>(emptyGrid);
-
-  useEffect(() => {
-    setUserGrid(emptyGrid);
-  }, [emptyGrid]);
 
   useEffect(() => {
     const mediaQuery = window.matchMedia("(pointer: coarse)");
@@ -201,11 +210,9 @@ export default function CrosswordGrid({
     }
   }, []);
 
-  const evaluateCorrectWords = useCallback(
-    (gridToCheck: string[][]) => {
-      setCorrectWords(computeCorrectWords(puzzle, gridToCheck, revealedCells));
-    },
-    [puzzle, revealedCells]
+  const correctWords = useMemo(
+    () => computeCorrectWords(puzzle, userGrid, revealedCells),
+    [puzzle.id, revealedCells, userGrid]
   );
 
   useEffect(() => {
@@ -239,21 +246,17 @@ export default function CrosswordGrid({
         ) {
           const nextGrid = parsedGrid as string[][];
           setUserGrid(nextGrid);
-          setCorrectWords(computeCorrectWords(puzzle, nextGrid, new Set()));
           setElapsedSeconds(parsedElapsedSeconds);
         } else {
           setUserGrid(emptyGrid);
-          setCorrectWords(computeCorrectWords(puzzle, emptyGrid, new Set()));
           setElapsedSeconds(0);
         }
       } catch {
         setUserGrid(emptyGrid);
-        setCorrectWords(computeCorrectWords(puzzle, emptyGrid, new Set()));
         setElapsedSeconds(0);
       }
     } else {
       setUserGrid(emptyGrid);
-      setCorrectWords(computeCorrectWords(puzzle, emptyGrid, new Set()));
       setElapsedSeconds(0);
     }
 
@@ -266,7 +269,7 @@ export default function CrosswordGrid({
     setSelectedRow(0);
     setSelectedCol(0);
     setDirection("across");
-  }, [emptyGrid, puzzle, puzzle.cols, puzzle.rows, storageKey]);
+  }, [emptyGrid, puzzle.cols, puzzle.id, puzzle.rows, storageKey]);
 
   useEffect(() => {
     const nextProgress: StoredProgress = {
@@ -278,20 +281,16 @@ export default function CrosswordGrid({
   }, [elapsedSeconds, storageKey, userGrid]);
 
   useEffect(() => {
-    evaluateCorrectWords(userGrid);
-  }, [evaluateCorrectWords, userGrid]);
-
-  useEffect(() => {
     if (!immediateChecks) {
-      setCorrectCells(new Set());
-      setWrongCells(new Set());
+      setCorrectCells((prev) => (prev.size === 0 ? prev : new Set()));
+      setWrongCells((prev) => (prev.size === 0 ? prev : new Set()));
       return;
     }
 
     const { correct, wrong } = computeCheckedCells(puzzle, userGrid);
-    setCorrectCells(correct);
-    setWrongCells(wrong);
-  }, [immediateChecks, puzzle, userGrid]);
+    setCorrectCells((prev) => (areSetsEqual(prev, correct) ? prev : correct));
+    setWrongCells((prev) => (areSetsEqual(prev, wrong) ? prev : wrong));
+  }, [immediateChecks, puzzle.id, userGrid]);
 
   const isBlackCell = useCallback(
     (row: number, col: number) => puzzle.grid[row][col] === "#",
@@ -431,7 +430,6 @@ export default function CrosswordGrid({
 
   function clearGrid() {
     setUserGrid(emptyGrid);
-    evaluateCorrectWords(emptyGrid);
     setWrongCells(new Set());
     setCorrectCells(new Set());
     setRevealedCells(new Set());
@@ -450,7 +448,6 @@ export default function CrosswordGrid({
     setUserGrid((prev) => {
       const next = prev.map((row) => [...row]);
       next[selectedRow][selectedCol] = puzzle.solution[selectedRow][selectedCol];
-      setCorrectWords(computeCorrectWords(puzzle, next, nextRevealedCells));
       return next;
     });
 
@@ -484,7 +481,6 @@ export default function CrosswordGrid({
       for (const cell of cells) {
         next[cell.row][cell.col] = puzzle.solution[cell.row][cell.col];
       }
-      setCorrectWords(computeCorrectWords(puzzle, next, nextRevealedCells));
       return next;
     });
 
@@ -690,7 +686,6 @@ export default function CrosswordGrid({
       setUserGrid((prev) => {
         const next = prev.map((row) => [...row]);
         next[selectedRow][selectedCol] = letter;
-        evaluateCorrectWords(next);
         return next;
       });
 
@@ -720,7 +715,6 @@ export default function CrosswordGrid({
     [
       direction,
       correctCells,
-      evaluateCorrectWords,
       findNextEditableCellInWord,
       focusActiveInput,
       isBlackCell,
@@ -772,7 +766,6 @@ export default function CrosswordGrid({
           setUserGrid((prev) => {
             const next = prev.map((row) => [...row]);
             next[row][col] = "";
-            evaluateCorrectWords(next);
             return next;
           });
         } else if (direction === "across") {
@@ -825,7 +818,6 @@ export default function CrosswordGrid({
     [
       direction,
       correctCells,
-      evaluateCorrectWords,
       findNextEditableCellInWord,
       focusActiveInput,
       handleLetterInput,
@@ -857,13 +849,12 @@ export default function CrosswordGrid({
         setUserGrid((prev) => {
           const next = prev.map((currentRow) => [...currentRow]);
           next[row][col] = "";
-          evaluateCorrectWords(next);
           return next;
         });
         clearCheckedCell(row, col);
       }
     },
-    [correctCells, evaluateCorrectWords, handleLetterInput, immediateChecks]
+    [correctCells, handleLetterInput, immediateChecks]
   );
 
   const handleMobileInputChange = useCallback(
