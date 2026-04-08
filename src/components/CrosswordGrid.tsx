@@ -264,9 +264,11 @@ export default function CrosswordGrid({ puzzle }: Props) {
   const focusActiveInput = useCallback(
     (row: number, col: number) => {
       if (usesTouchKeyboard) {
-        window.requestAnimationFrame(() => {
-          mobileInputRef.current?.focus();
-        });
+        mobileInputRef.current?.focus();
+        mobileInputRef.current?.setSelectionRange?.(
+          0,
+          mobileInputRef.current.value.length
+        );
         return;
       }
 
@@ -961,7 +963,7 @@ export default function CrosswordGrid({ puzzle }: Props) {
                       onKeyDown={(event) =>
                         handleKeyInput(event, selectedRow, selectedCol)
                       }
-                      className="pointer-events-none absolute opacity-0"
+                      className="absolute left-0 top-0 h-px w-px opacity-0"
                       aria-label="Mobile crossword input"
                     />
                   )}
