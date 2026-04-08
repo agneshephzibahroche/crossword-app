@@ -8,9 +8,10 @@ import {
   useSyncExternalStore,
 } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import CrosswordGrid from "@/components/CrosswordGrid";
 import NextPuzzleCountdown from "@/components/NextPuzzleCountdown";
-import { PuzzleArchiveEntry } from "@/lib/dailyPuzzle";
+import { getAnchorDateKey, PuzzleArchiveEntry } from "@/lib/dailyPuzzle";
 import { Puzzle } from "@/types/puzzle";
 import { ThemeMode } from "@/types/theme";
 
@@ -245,7 +246,10 @@ export default function HomeClientWithPuzzle({
   puzzle,
   today,
 }: Props) {
+  const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [browseDatesOpen, setBrowseDatesOpen] = useState(false);
+  const [browseDate, setBrowseDate] = useState("");
   const [archiveStatuses, setArchiveStatuses] = useState<
     Record<string, ArchiveStatus>
   >({});
@@ -346,6 +350,23 @@ export default function HomeClientWithPuzzle({
       nextValue ? "true" : "false"
     );
     window.dispatchEvent(new Event(ARCHIVE_EVENT));
+  }
+
+  function openPuzzleDate(date: string) {
+    if (!isDateAvailable(date)) {
+      return;
+    }
+
+    setMenuOpen(false);
+    router.push(date === today ? "/" : `/?date=${date}`);
+  }
+
+  function isDateAvailable(date: string) {
+    if (!date) {
+      return false;
+    }
+
+    return date >= getAnchorDateKey() && date <= today;
   }
 
   function renderStatusBadge(status: ArchiveStatus, isSelected: boolean) {
@@ -458,7 +479,11 @@ export default function HomeClientWithPuzzle({
         </header>
 
         <div className="mt-6">
-          <CrosswordGrid immediateChecks={immediateChecks} puzzle={puzzle} />
+          <CrosswordGrid
+            key={puzzle.id}
+            immediateChecks={immediateChecks}
+            puzzle={puzzle}
+          />
         </div>
       </div>
 
@@ -651,6 +676,53 @@ export default function HomeClientWithPuzzle({
                     </div>
                   </Link>
                 ))}
+              </div>
+
+              <div className="mt-4 rounded-2xl border border-[var(--line)] bg-[var(--surface)] px-4 py-3">
+                <button
+                  type="button"
+                  onClick={() => setBrowseDatesOpen((prev) => !prev)}
+                  className="flex w-full items-center justify-between gap-3 text-left"
+                >
+                  <div>
+                    <p className="text-sm font-semibold text-[var(--ink)]">
+                      Browse dates
+                    </p>
+                    <p className="mt-1 text-xs text-[var(--muted)]">
+                      Open an older daily without expanding the main layout.
+                    </p>
+                  </div>
+                  <span className="rounded-full bg-[var(--card-muted)] px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-[var(--muted)]">
+                    {browseDatesOpen ? "Hide" : "Open"}
+                  </span>
+                </button>
+
+                {browseDatesOpen && (
+                  <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center">
+                    <input
+                      type="date"
+                      min={getAnchorDateKey()}
+                      max={today}
+                      value={browseDate || puzzle.date}
+                      onChange={(event) => setBrowseDate(event.currentTarget.value)}
+                      className="w-full rounded-2xl border border-[var(--line-strong)] bg-[var(--paper)] px-4 py-3 text-sm font-medium text-[var(--ink)] outline-none transition focus:border-[var(--accent)]"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => openPuzzleDate(browseDate || puzzle.date)}
+                      disabled={!isDateAvailable(browseDate || puzzle.date)}
+                      className={`rounded-full border px-4 py-2 text-sm font-semibold transition ${
+                        isDateAvailable(browseDate || puzzle.date)
+                          ? "border-[var(--line-strong)] bg-[var(--surface)] text-[var(--ink)] hover:border-[var(--accent)] hover:bg-[var(--surface-hover)]"
+                          : "cursor-not-allowed border-[var(--line)] bg-[var(--card-muted)] text-[var(--muted)]"
+                      }`}
+                    >
+                      {isDateAvailable(browseDate || puzzle.date)
+                        ? "Open date"
+                        : "Unavailable"}
+                    </button>
+                  </div>
+                )}
               </div>
             </section>
 

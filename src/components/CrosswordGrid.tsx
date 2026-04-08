@@ -21,6 +21,7 @@ type CrosswordStats = {
 type StoredProgress = {
   grid: string[][];
   elapsedSeconds: number;
+  startedAtMs?: number | null;
 };
 
 const STATS_KEY = "crossword-daily-stats-v1";
@@ -122,6 +123,127 @@ function areSetsEqual(left: Set<string>, right: Set<string>) {
   return true;
 }
 
+function readStoredStats(): CrosswordStats {
+  if (typeof window === "undefined") {
+    return {
+      solvedDates: [],
+      completedWithRevealsDates: [],
+      bestTimeSeconds: null,
+      cleanSolveTimesByDate: {},
+    };
+  }
+
+  const raw = localStorage.getItem(STATS_KEY);
+
+  if (!raw) {
+    return {
+      solvedDates: [],
+      completedWithRevealsDates: [],
+      bestTimeSeconds: null,
+      cleanSolveTimesByDate: {},
+    };
+  }
+
+  try {
+    const parsed = JSON.parse(raw) as Partial<CrosswordStats>;
+    const cleanSolveTimesByDate =
+      parsed.cleanSolveTimesByDate &&
+      typeof parsed.cleanSolveTimesByDate === "object"
+        ? Object.fromEntries(
+            Object.entries(parsed.cleanSolveTimesByDate).filter(
+              ([key, value]) => key && typeof value === "number"
+            )
+          )
+        : {};
+
+    return {
+      solvedDates: Array.isArray(parsed.solvedDates) ? parsed.solvedDates : [],
+      completedWithRevealsDates: Array.isArray(
+        parsed.completedWithRevealsDates
+      )
+        ? parsed.completedWithRevealsDates
+        : [],
+      bestTimeSeconds:
+        typeof parsed.bestTimeSeconds === "number" &&
+        parsed.bestTimeSeconds > 0
+          ? parsed.bestTimeSeconds
+          : null,
+      cleanSolveTimesByDate,
+    };
+  } catch {
+    return {
+      solvedDates: [],
+      completedWithRevealsDates: [],
+      bestTimeSeconds: null,
+      cleanSolveTimesByDate: {},
+    };
+  }
+}
+
+function readStoredProgress(
+  storageKey: string,
+  emptyGrid: string[][],
+  rows: number,
+  cols: number
+): StoredProgress {
+  if (typeof window === "undefined") {
+    return {
+      grid: emptyGrid,
+      elapsedSeconds: 0,
+    };
+  }
+
+  const saved = localStorage.getItem(storageKey);
+
+  if (!saved) {
+    return {
+      grid: emptyGrid,
+      elapsedSeconds: 0,
+    };
+  }
+
+  try {
+    const parsed = JSON.parse(saved);
+    const parsedGrid =
+      Array.isArray(parsed)
+        ? parsed
+        : parsed &&
+            typeof parsed === "object" &&
+            Array.isArray(parsed.grid)
+          ? parsed.grid
+          : null;
+    const parsedElapsedSeconds =
+      parsed &&
+      typeof parsed === "object" &&
+      typeof parsed.elapsedSeconds === "number" &&
+      parsed.elapsedSeconds >= 0
+        ? parsed.elapsedSeconds
+        : 0;
+
+    if (
+      Array.isArray(parsedGrid) &&
+      parsedGrid.length === rows &&
+      parsedGrid.every(
+        (row: unknown) => Array.isArray(row) && row.length === cols
+      )
+    ) {
+      return {
+        grid: parsedGrid as string[][],
+        elapsedSeconds: parsedElapsedSeconds,
+        startedAtMs: null,
+      };
+    }
+  } catch {
+    // fall through to defaults
+  }
+
+  return {
+    grid: emptyGrid,
+    elapsedSeconds: 0,
+    startedAtMs: null,
+  };
+}
+
 export default function CrosswordGrid({
   immediateChecks = false,
   puzzle,
@@ -129,6 +251,7 @@ export default function CrosswordGrid({
   const cellInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
   const boardSectionRef = useRef<HTMLDivElement | null>(null);
   const mobileInputRef = useRef<HTMLInputElement | null>(null);
+  const hasRecordedCompletionRef = useRef(false);
   const [selectedRow, setSelectedRow] = useState(0);
   const [selectedCol, setSelectedCol] = useState(0);
   const [direction, setDirection] = useState<Direction>("across");
@@ -137,23 +260,25 @@ export default function CrosswordGrid({
   const [correctCells, setCorrectCells] = useState<Set<string>>(new Set());
   const [revealedCells, setRevealedCells] = useState<Set<string>>(new Set());
   const [revealedWords, setRevealedWords] = useState<Set<string>>(new Set());
-  const [elapsedSeconds, setElapsedSeconds] = useState(0);
-  const [showWinModal, setShowWinModal] = useState(false);
-  const [hasShownWin, setHasShownWin] = useState(false);
-  const [stats, setStats] = useState<CrosswordStats>({
-    solvedDates: [],
-    completedWithRevealsDates: [],
-    bestTimeSeconds: null,
-    cleanSolveTimesByDate: {},
-  });
+  const [completionDismissed, setCompletionDismissed] = useState(false);
   const [shareState, setShareState] = useState<"idle" | "copied">("idle");
 
   const storageKey = `daily-crossword-progress-${puzzle.id}`;
   const emptyGrid = useMemo(
     () => puzzle.grid.map((row) => row.map((cell) => (cell === "#" ? "#" : ""))),
-    [puzzle.id]
+    [puzzle.grid]
   );
-  const [userGrid, setUserGrid] = useState<string[][]>(emptyGrid);
+  const initialProgress = useMemo(
+    () => readStoredProgress(storageKey, emptyGrid, puzzle.rows, puzzle.cols),
+    [emptyGrid, puzzle.cols, puzzle.rows, storageKey]
+  );
+  const [userGrid, setUserGrid] = useState<string[][]>(() => initialProgress.grid);
+  const [elapsedSeconds, setElapsedSeconds] = useState(
+    () => initialProgress.elapsedSeconds
+  );
+  const [startedAtMs, setStartedAtMs] = useState<number | null>(
+    () => initialProgress.startedAtMs ?? Date.now()
+  );
 
   useEffect(() => {
     const mediaQuery = window.matchMedia("(pointer: coarse)");
@@ -169,128 +294,33 @@ export default function CrosswordGrid({
     };
   }, []);
 
-  useEffect(() => {
-    const raw = localStorage.getItem(STATS_KEY);
-
-    if (!raw) return;
-
-    try {
-      const parsed = JSON.parse(raw) as Partial<CrosswordStats>;
-      const cleanSolveTimesByDate =
-        parsed.cleanSolveTimesByDate &&
-        typeof parsed.cleanSolveTimesByDate === "object"
-          ? Object.fromEntries(
-              Object.entries(parsed.cleanSolveTimesByDate).filter(
-                ([key, value]) => key && typeof value === "number"
-              )
-            )
-          : {};
-
-      setStats({
-        solvedDates: Array.isArray(parsed.solvedDates) ? parsed.solvedDates : [],
-        completedWithRevealsDates: Array.isArray(
-          parsed.completedWithRevealsDates
-        )
-          ? parsed.completedWithRevealsDates
-          : [],
-        bestTimeSeconds:
-          typeof parsed.bestTimeSeconds === "number" &&
-          parsed.bestTimeSeconds > 0
-            ? parsed.bestTimeSeconds
-            : null,
-        cleanSolveTimesByDate,
-      });
-    } catch {
-      setStats({
-        solvedDates: [],
-        completedWithRevealsDates: [],
-        bestTimeSeconds: null,
-        cleanSolveTimesByDate: {},
-      });
-    }
-  }, []);
-
   const correctWords = useMemo(
     () => computeCorrectWords(puzzle, userGrid, revealedCells),
-    [puzzle.id, revealedCells, userGrid]
+    [puzzle, revealedCells, userGrid]
   );
-
-  useEffect(() => {
-    const saved = localStorage.getItem(storageKey);
-
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        const parsedGrid =
-          Array.isArray(parsed)
-            ? parsed
-            : parsed &&
-                typeof parsed === "object" &&
-                Array.isArray(parsed.grid)
-              ? parsed.grid
-              : null;
-        const parsedElapsedSeconds =
-          parsed &&
-          typeof parsed === "object" &&
-          typeof parsed.elapsedSeconds === "number" &&
-          parsed.elapsedSeconds >= 0
-            ? parsed.elapsedSeconds
-            : 0;
-
-        if (
-          Array.isArray(parsedGrid) &&
-          parsedGrid.length === puzzle.rows &&
-          parsedGrid.every(
-            (row: unknown) => Array.isArray(row) && row.length === puzzle.cols
-          )
-        ) {
-          const nextGrid = parsedGrid as string[][];
-          setUserGrid(nextGrid);
-          setElapsedSeconds(parsedElapsedSeconds);
-        } else {
-          setUserGrid(emptyGrid);
-          setElapsedSeconds(0);
-        }
-      } catch {
-        setUserGrid(emptyGrid);
-        setElapsedSeconds(0);
-      }
-    } else {
-      setUserGrid(emptyGrid);
-      setElapsedSeconds(0);
-    }
-
-    setWrongCells(new Set());
-    setCorrectCells(new Set());
-    setRevealedCells(new Set());
-    setRevealedWords(new Set());
-    setShowWinModal(false);
-    setHasShownWin(false);
-    setSelectedRow(0);
-    setSelectedCol(0);
-    setDirection("across");
-  }, [emptyGrid, puzzle.cols, puzzle.id, puzzle.rows, storageKey]);
 
   useEffect(() => {
     const nextProgress: StoredProgress = {
       grid: userGrid,
       elapsedSeconds,
+      startedAtMs,
     };
     localStorage.setItem(storageKey, JSON.stringify(nextProgress));
     window.dispatchEvent(new Event(ARCHIVE_EVENT));
-  }, [elapsedSeconds, storageKey, userGrid]);
+  }, [elapsedSeconds, startedAtMs, storageKey, userGrid]);
 
-  useEffect(() => {
+  const immediateCheckResult = useMemo(() => {
     if (!immediateChecks) {
-      setCorrectCells((prev) => (prev.size === 0 ? prev : new Set()));
-      setWrongCells((prev) => (prev.size === 0 ? prev : new Set()));
-      return;
+      return null;
     }
 
-    const { correct, wrong } = computeCheckedCells(puzzle, userGrid);
-    setCorrectCells((prev) => (areSetsEqual(prev, correct) ? prev : correct));
-    setWrongCells((prev) => (areSetsEqual(prev, wrong) ? prev : wrong));
-  }, [immediateChecks, puzzle.id, userGrid]);
+    return computeCheckedCells(puzzle, userGrid);
+  }, [immediateChecks, puzzle, userGrid]);
+
+  const activeCorrectCells =
+    immediateCheckResult?.correct ?? correctCells;
+  const activeWrongCells =
+    immediateCheckResult?.wrong ?? wrongCells;
 
   const isBlackCell = useCallback(
     (row: number, col: number) => puzzle.grid[row][col] === "#",
@@ -434,6 +464,10 @@ export default function CrosswordGrid({
     setCorrectCells(new Set());
     setRevealedCells(new Set());
     setRevealedWords(new Set());
+    setElapsedSeconds(0);
+    setStartedAtMs(Date.now());
+    setCompletionDismissed(false);
+    hasRecordedCompletionRef.current = false;
   }
 
   function handleRevealLetter() {
@@ -545,12 +579,12 @@ export default function CrosswordGrid({
           const key = `${cell.row}-${cell.col}`;
           return (
             !revealedCells.has(key) &&
-            !(immediateChecks && correctCells.has(key))
+            !(immediateChecks && activeCorrectCells.has(key))
           );
         }) ?? null
       );
     },
-    [correctCells, immediateChecks, puzzle, revealedCells]
+    [activeCorrectCells, immediateChecks, puzzle, revealedCells]
   );
 
   const completedCellSet = useMemo(() => {
@@ -575,7 +609,7 @@ export default function CrosswordGrid({
       );
 
       const isVisiblyComplete = cells.every((cell) =>
-        correctCells.has(`${cell.row}-${cell.col}`)
+        activeCorrectCells.has(`${cell.row}-${cell.col}`)
       );
 
       if (
@@ -603,7 +637,7 @@ export default function CrosswordGrid({
     }
 
     return next;
-  }, [correctCells, correctWords, immediateChecks, puzzle, revealedCells]);
+  }, [activeCorrectCells, correctWords, immediateChecks, puzzle, revealedCells]);
 
   const visibleCompletedWords = useMemo(() => {
     const next = new Set<string>();
@@ -639,7 +673,7 @@ export default function CrosswordGrid({
       }
 
       const isVisiblyComplete = cells.every((cell) =>
-        correctCells.has(`${cell.row}-${cell.col}`)
+        activeCorrectCells.has(`${cell.row}-${cell.col}`)
       );
 
       if (isVisiblyComplete) {
@@ -648,25 +682,33 @@ export default function CrosswordGrid({
     }
 
     return next;
-  }, [correctCells, correctWords, immediateChecks, puzzle, revealedCells]);
+  }, [activeCorrectCells, correctWords, immediateChecks, puzzle, revealedCells]);
 
-  useEffect(() => {
-    if (showWinModal) return;
+  const isComplete = useMemo(() => {
+    if (puzzle.clues.across.length + puzzle.clues.down.length === 0) {
+      return false;
+    }
 
-    const id = window.setInterval(() => {
-      setElapsedSeconds((prev) => prev + 1);
-    }, 1000);
+    for (let row = 0; row < puzzle.rows; row += 1) {
+      for (let col = 0; col < puzzle.cols; col += 1) {
+        if (puzzle.grid[row][col] === "#") continue;
 
-    return () => window.clearInterval(id);
-  }, [showWinModal, storageKey]);
+        if (userGrid[row][col] !== puzzle.solution[row][col]) {
+          return false;
+        }
+      }
+    }
+
+    return true;
+  }, [puzzle, userGrid]);
 
   const handleLetterInput = useCallback(
     (letter: string) => {
-      if (showWinModal || isBlackCell(selectedRow, selectedCol)) {
+      if (isComplete || isBlackCell(selectedRow, selectedCol)) {
         return;
       }
 
-      if (immediateChecks && correctCells.has(`${selectedRow}-${selectedCol}`)) {
+      if (immediateChecks && activeCorrectCells.has(`${selectedRow}-${selectedCol}`)) {
         const nextEditableCell = findNextEditableCellInWord(
           selectedRow,
           selectedCol,
@@ -714,7 +756,7 @@ export default function CrosswordGrid({
     },
     [
       direction,
-      correctCells,
+      activeCorrectCells,
       findNextEditableCellInWord,
       focusActiveInput,
       isBlackCell,
@@ -722,7 +764,7 @@ export default function CrosswordGrid({
       revealedCells,
       selectedCol,
       selectedRow,
-      showWinModal,
+      isComplete,
       immediateChecks,
     ]
   );
@@ -732,7 +774,7 @@ export default function CrosswordGrid({
       setSelectedRow(row);
       setSelectedCol(col);
 
-      if (showWinModal || isBlackCell(row, col)) {
+      if (isComplete || isBlackCell(row, col)) {
         return;
       }
 
@@ -745,7 +787,7 @@ export default function CrosswordGrid({
       if (event.key === "Backspace") {
         event.preventDefault();
 
-        if (immediateChecks && correctCells.has(`${row}-${col}`)) {
+        if (immediateChecks && activeCorrectCells.has(`${row}-${col}`)) {
           const nextEditableCell = findNextEditableCellInWord(
             row,
             col,
@@ -817,15 +859,15 @@ export default function CrosswordGrid({
     },
     [
       direction,
-      correctCells,
+      activeCorrectCells,
       findNextEditableCellInWord,
       focusActiveInput,
       handleLetterInput,
       immediateChecks,
       isBlackCell,
+      isComplete,
       moveSelection,
       revealedCells,
-      showWinModal,
       userGrid,
     ]
   );
@@ -842,7 +884,7 @@ export default function CrosswordGrid({
       }
 
       if (letter === "") {
-        if (immediateChecks && correctCells.has(`${row}-${col}`)) {
+        if (immediateChecks && activeCorrectCells.has(`${row}-${col}`)) {
           return;
         }
 
@@ -854,7 +896,7 @@ export default function CrosswordGrid({
         clearCheckedCell(row, col);
       }
     },
-    [correctCells, handleLetterInput, immediateChecks]
+    [activeCorrectCells, handleLetterInput, immediateChecks]
   );
 
   const handleMobileInputChange = useCallback(
@@ -871,30 +913,28 @@ export default function CrosswordGrid({
     [handleLetterInput]
   );
 
-  const isComplete = useMemo(() => {
-    if (puzzle.clues.across.length + puzzle.clues.down.length === 0) {
-      return false;
-    }
-
-    for (let row = 0; row < puzzle.rows; row += 1) {
-      for (let col = 0; col < puzzle.cols; col += 1) {
-        if (puzzle.grid[row][col] === "#") continue;
-
-        if (userGrid[row][col] !== puzzle.solution[row][col]) {
-          return false;
-        }
-      }
-    }
-
-    return true;
-  }, [puzzle, userGrid]);
+  const showWinModal = isComplete && !completionDismissed;
 
   useEffect(() => {
-    if (!isComplete || hasShownWin) return;
+    if (isComplete || startedAtMs === null) return;
 
-    setShowWinModal(true);
-    setHasShownWin(true);
+    const id = window.setInterval(() => {
+      const nextElapsed = Math.max(
+        0,
+        Math.floor((Date.now() - startedAtMs) / 1000)
+      );
+      setElapsedSeconds((prev) => (prev === nextElapsed ? prev : nextElapsed));
+    }, 1000);
 
+    return () => window.clearInterval(id);
+  }, [isComplete, startedAtMs]);
+
+  useEffect(() => {
+    if (!isComplete || hasRecordedCompletionRef.current) return;
+
+    hasRecordedCompletionRef.current = true;
+
+    const stats = readStoredStats();
     const hasReveals = revealedCells.size > 0;
     const cleanSolveTimesByDate = { ...stats.cleanSolveTimesByDate };
     const completedWithRevealsDates = hasReveals
@@ -927,10 +967,9 @@ export default function CrosswordGrid({
       cleanSolveTimesByDate,
     };
 
-    setStats(nextStats);
     localStorage.setItem(STATS_KEY, JSON.stringify(nextStats));
     window.dispatchEvent(new Event(ARCHIVE_EVENT));
-  }, [elapsedSeconds, hasShownWin, isComplete, puzzle.date, revealedCells.size, stats]);
+  }, [elapsedSeconds, isComplete, puzzle.date, revealedCells.size]);
 
   function formatTime(totalSeconds: number) {
     const mins = Math.floor(totalSeconds / 60);
@@ -1166,8 +1205,8 @@ export default function CrosswordGrid({
                           rowIndex === selectedRow && colIndex === selectedCol;
                         const cellKey = `${rowIndex}-${colIndex}`;
                         const isInActiveWord = activeWordSet.has(cellKey);
-                        const isWrong = wrongCells.has(cellKey);
-                        const isCorrect = correctCells.has(cellKey);
+                        const isWrong = activeWrongCells.has(cellKey);
+                        const isCorrect = activeCorrectCells.has(cellKey);
                         const isRevealed = revealedCells.has(cellKey);
                         const isInCompletedWord =
                           completedCellSet.has(cellKey);
@@ -1222,7 +1261,7 @@ export default function CrosswordGrid({
                                 value={userGrid[rowIndex]?.[colIndex] ?? ""}
                                 readOnly={
                                   isRevealed ||
-                                  (immediateChecks && correctCells.has(cellKey)) ||
+                                  (immediateChecks && activeCorrectCells.has(cellKey)) ||
                                   usesTouchKeyboard
                                 }
                                 aria-label={`Row ${rowIndex + 1} Column ${colIndex + 1}`}
@@ -1269,7 +1308,7 @@ export default function CrosswordGrid({
       {showWinModal && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(15,23,42,0.55)] p-4"
-          onClick={() => setShowWinModal(false)}
+          onClick={() => setCompletionDismissed(true)}
         >
           <div
             onClick={(event) => event.stopPropagation()}
@@ -1327,7 +1366,7 @@ export default function CrosswordGrid({
             <div className="mt-6 flex gap-3">
               <button
                 type="button"
-                onClick={() => setShowWinModal(false)}
+                onClick={() => setCompletionDismissed(true)}
                 className="rounded-full border border-[var(--line-strong)] bg-[var(--surface)] px-4 py-2 text-sm font-semibold text-[var(--ink)] transition hover:bg-[var(--card-muted)]"
               >
                 Close
