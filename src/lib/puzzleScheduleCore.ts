@@ -14,6 +14,9 @@ export type GeneratedMeta = {
   wordSignature: string;
   clues: string[];
   answers: string[];
+  qualityScore: number;
+  shortFillCount: number;
+  glueCount: number;
   puzzle: Puzzle;
 };
 
@@ -34,6 +37,9 @@ export const STRICT_WINDOW_ATTEMPTS = 36;
 export const RECENT_ARCHIVE_DAYS = 3;
 export const SCHEDULE_START = "2025-01-01";
 export const SCHEDULE_END = "2030-12-31";
+const MIN_QUALITY_SCORE = 66;
+const MAX_SHORT_FILL = 4;
+const MAX_GLUE_WORDS = 2;
 
 const PATTERN_TEMPLATES: PatternTemplate[] = [
   {
@@ -162,11 +168,22 @@ function shuffleWithSeed<T>(items: T[], seed: string) {
 
 function getEntryPriority(entry: DictionaryEntry, seed: string) {
   const baseScore = entry.quality * 100;
+  const familiarityBonus = entry.familiarity * 18;
   const lengthBonus = entry.word.length * 6;
-  const shortFillPenalty = entry.tags.includes("short-fill") ? -18 : 0;
+  const shortFillPenalty = entry.tags.includes("short-fill") ? -36 : 0;
+  const gluePenalty = entry.tags.includes("glue") ? -42 : 0;
+  const miniFillPenalty = entry.tags.includes("mini-fill") ? -10 : 0;
   const tieBreaker = hashString(`${seed}:${entry.word}`) % 17;
 
-  return baseScore + lengthBonus + shortFillPenalty + tieBreaker;
+  return (
+    baseScore +
+    familiarityBonus +
+    lengthBonus +
+    shortFillPenalty +
+    gluePenalty +
+    miniFillPenalty +
+    tieBreaker
+  );
 }
 
 function sortCandidates(candidates: DictionaryEntry[], seed: string) {
@@ -376,12 +393,32 @@ function buildPuzzle(dateKey: string, pattern: PatternTemplate, seed: string) {
     });
 
   const signature = solution.map((row) => row.join("")).join("|");
-  const wordSignature = [...assignment.values()]
+  const assignedEntries = [...assignment.values()];
+  const wordSignature = assignedEntries
     .map((entry) => entry.word)
     .sort()
     .join("|");
-  const answers = [...assignment.values()].map((entry) => entry.word);
+  const answers = assignedEntries.map((entry) => entry.word);
   const clueList = [...across, ...down].map((entry) => entry.clue);
+  const shortFillCount = assignedEntries.filter((entry) =>
+    entry.tags.includes("short-fill")
+  ).length;
+  const glueCount = assignedEntries.filter((entry) =>
+    entry.tags.includes("glue")
+  ).length;
+  const qualityScore = Math.round(
+    (assignedEntries.reduce(
+      (sum, entry) =>
+        sum +
+        entry.quality * 7 +
+        entry.familiarity * 5 -
+        (entry.tags.includes("short-fill") ? 8 : 0) -
+        (entry.tags.includes("glue") ? 12 : 0),
+      0
+    ) /
+      Math.max(assignedEntries.length, 1)) *
+      10
+  ) / 10;
 
   return {
     patternId: pattern.id,
@@ -389,6 +426,9 @@ function buildPuzzle(dateKey: string, pattern: PatternTemplate, seed: string) {
     wordSignature,
     clues: clueList,
     answers,
+    qualityScore,
+    shortFillCount,
+    glueCount,
     puzzle: {
       id: `${dateKey}-${pattern.id}-${hashString(signature).toString(16)}`,
       date: dateKey,
@@ -491,6 +531,14 @@ export function generateSingleDate(
       }
 
       if (candidate.answers.some((answer) => recentAnswers.has(answer))) {
+        continue;
+      }
+
+      if (
+        candidate.qualityScore < MIN_QUALITY_SCORE ||
+        candidate.shortFillCount > MAX_SHORT_FILL ||
+        candidate.glueCount > MAX_GLUE_WORDS
+      ) {
         continue;
       }
 

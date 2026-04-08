@@ -4,6 +4,7 @@ export type DictionaryEntry = {
   clues: string[];
   quality: number;
   allowInDaily: boolean;
+  familiarity: number;
   tags: string[];
 };
 
@@ -16,8 +17,40 @@ type DictionaryOverride = {
   clues?: string[];
   quality?: number;
   allowInDaily?: boolean;
+  familiarity?: number;
   tags?: string[];
 };
+
+const GLUE_WORDS = new Set([
+  "AM",
+  "AN",
+  "ARE",
+  "AS",
+  "AT",
+  "DO",
+  "GO",
+  "HE",
+  "HER",
+  "HI",
+  "IN",
+  "IT",
+  "ME",
+  "MY",
+  "NO",
+  "NOT",
+  "OF",
+  "ON",
+  "ONE",
+  "OR",
+  "SO",
+  "TO",
+  "US",
+  "USE",
+  "WAY",
+  "WE",
+  "YES",
+  "YET",
+]);
 
 const DICTIONARY_OVERRIDES: Record<string, DictionaryOverride> = {
   AD: {
@@ -779,11 +812,39 @@ function inferQuality(word: string) {
   return 2;
 }
 
+function inferFamiliarity(word: string) {
+  if (word.length === 5) {
+    return 9;
+  }
+
+  if (word.length >= 6) {
+    return 8;
+  }
+
+  if (word.length === 4) {
+    return 7;
+  }
+
+  if (word.length === 3) {
+    return GLUE_WORDS.has(word) ? 3 : 5;
+  }
+
+  return GLUE_WORDS.has(word) ? 1 : 2;
+}
+
 function buildTags(word: string, override?: DictionaryOverride) {
   const tags = new Set<string>(override?.tags ?? []);
 
   if (word.length <= 2) {
     tags.add("short-fill");
+  }
+
+  if (GLUE_WORDS.has(word)) {
+    tags.add("glue");
+  }
+
+  if (word.length === 3 && !GLUE_WORDS.has(word)) {
+    tags.add("mini-fill");
   }
 
   return [...tags];
@@ -801,6 +862,7 @@ export const DICTIONARY: DictionaryEntry[] = RAW_DICTIONARY.map((entry) => {
     clues,
     quality: override?.quality ?? inferQuality(entry.word),
     allowInDaily: override?.allowInDaily ?? true,
+    familiarity: override?.familiarity ?? inferFamiliarity(entry.word),
     tags: buildTags(entry.word, override),
   };
 });

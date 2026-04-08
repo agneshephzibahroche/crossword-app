@@ -7,6 +7,7 @@ import { getCellNumber, getWordCells } from "@/lib/crossword";
 import { Direction, Puzzle } from "@/types/puzzle";
 
 type Props = {
+  immediateChecks?: boolean;
   puzzle: Puzzle;
 };
 
@@ -63,7 +64,54 @@ function computeCorrectWords(
   return next;
 }
 
-export default function CrosswordGrid({ puzzle }: Props) {
+function computeCheckedCells(puzzle: Puzzle, gridToCheck: string[][]) {
+  const correct = new Set<string>();
+  const wrong = new Set<string>();
+  const allClues = [
+    ...puzzle.clues.across.map((clue) => ({
+      row: clue.row,
+      col: clue.col,
+      direction: "across" as const,
+    })),
+    ...puzzle.clues.down.map((clue) => ({
+      row: clue.row,
+      col: clue.col,
+      direction: "down" as const,
+    })),
+  ];
+
+  for (const clue of allClues) {
+    const cells = getWordCells(puzzle, clue.row, clue.col, clue.direction);
+    const isFilledWord = cells.every(
+      (cell) => gridToCheck[cell.row][cell.col] !== ""
+    );
+
+    if (!isFilledWord) {
+      continue;
+    }
+
+    const isCorrectWord = cells.every(
+      (cell) => gridToCheck[cell.row][cell.col] === puzzle.solution[cell.row][cell.col]
+    );
+
+    for (const cell of cells) {
+      const key = `${cell.row}-${cell.col}`;
+      if (isCorrectWord) {
+        wrong.delete(key);
+        correct.add(key);
+      } else if (!correct.has(key)) {
+        wrong.add(key);
+      }
+    }
+  }
+
+  return { correct, wrong };
+}
+
+export default function CrosswordGrid({
+  immediateChecks = false,
+  puzzle,
+}: Props) {
   const cellInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
   const boardSectionRef = useRef<HTMLDivElement | null>(null);
   const mobileInputRef = useRef<HTMLInputElement | null>(null);
@@ -233,6 +281,18 @@ export default function CrosswordGrid({ puzzle }: Props) {
     evaluateCorrectWords(userGrid);
   }, [evaluateCorrectWords, userGrid]);
 
+  useEffect(() => {
+    if (!immediateChecks) {
+      setCorrectCells(new Set());
+      setWrongCells(new Set());
+      return;
+    }
+
+    const { correct, wrong } = computeCheckedCells(puzzle, userGrid);
+    setCorrectCells(correct);
+    setWrongCells(wrong);
+  }, [immediateChecks, puzzle, userGrid]);
+
   const isBlackCell = useCallback(
     (row: number, col: number) => puzzle.grid[row][col] === "#",
     [puzzle.grid]
@@ -297,8 +357,11 @@ export default function CrosswordGrid({ puzzle }: Props) {
     col: number,
     nextDirection: Direction
   ) {
-    setSelectedRow(row);
-    setSelectedCol(col);
+    const targetCell =
+      findNextEditableCellInWord(row, col, nextDirection, true) ?? { row, col };
+
+    setSelectedRow(targetCell.row);
+    setSelectedCol(targetCell.col);
     setDirection(nextDirection);
 
     if (usesTouchKeyboard) {
@@ -313,7 +376,7 @@ export default function CrosswordGrid({ puzzle }: Props) {
       }, 160);
     }
 
-    focusActiveInput(row, col);
+    focusActiveInput(targetCell.row, targetCell.col);
   }
 
   function clearCheckedCell(row: number, col: number) {
@@ -361,24 +424,7 @@ export default function CrosswordGrid({ puzzle }: Props) {
   }
 
   function handleCheckAnswers() {
-    const wrong = new Set<string>();
-    const correct = new Set<string>();
-
-    for (let row = 0; row < puzzle.rows; row += 1) {
-      for (let col = 0; col < puzzle.cols; col += 1) {
-        if (puzzle.grid[row][col] === "#") continue;
-
-        const typed = userGrid[row][col];
-        if (typed === "") continue;
-
-        if (typed === puzzle.solution[row][col]) {
-          correct.add(`${row}-${col}`);
-        } else {
-          wrong.add(`${row}-${col}`);
-        }
-      }
-    }
-
+    const { correct, wrong } = computeCheckedCells(puzzle, userGrid);
     setWrongCells(wrong);
     setCorrectCells(correct);
   }
@@ -477,7 +523,93 @@ export default function CrosswordGrid({ puzzle }: Props) {
     [activeWordCells]
   );
 
+  const findNextEditableCellInWord = useCallback(
+    (
+      row: number,
+      col: number,
+      wordDirection: Direction,
+      includeCurrent = false
+    ) => {
+      const cells = getWordCells(puzzle, row, col, wordDirection);
+      if (cells.length === 0) {
+        return null;
+      }
+
+      const selectedIndex = cells.findIndex(
+        (cell) => cell.row === row && cell.col === col
+      );
+      const startIndex = selectedIndex >= 0 ? selectedIndex : 0;
+      const orderedCells = [
+        ...cells.slice(includeCurrent ? startIndex : startIndex + 1),
+        ...cells.slice(0, includeCurrent ? startIndex : startIndex + 1),
+      ];
+
+      return (
+        orderedCells.find((cell) => {
+          const key = `${cell.row}-${cell.col}`;
+          return (
+            !revealedCells.has(key) &&
+            !(immediateChecks && correctCells.has(key))
+          );
+        }) ?? null
+      );
+    },
+    [correctCells, immediateChecks, puzzle, revealedCells]
+  );
+
   const completedCellSet = useMemo(() => {
+    const visibleCompletedWords = new Set<string>();
+    const allClues = [
+      ...puzzle.clues.across.map((clue) => ({
+        row: clue.row,
+        col: clue.col,
+        direction: "across" as const,
+      })),
+      ...puzzle.clues.down.map((clue) => ({
+        row: clue.row,
+        col: clue.col,
+        direction: "down" as const,
+      })),
+    ];
+
+    for (const clue of allClues) {
+      const cells = getWordCells(puzzle, clue.row, clue.col, clue.direction);
+      const hasRevealedCell = cells.some((cell) =>
+        revealedCells.has(`${cell.row}-${cell.col}`)
+      );
+
+      const isVisiblyComplete = cells.every((cell) =>
+        correctCells.has(`${cell.row}-${cell.col}`)
+      );
+
+      if (
+        !hasRevealedCell &&
+        (immediateChecks ? correctWords.has(getWordKey(clue.row, clue.col, clue.direction)) : isVisiblyComplete)
+      ) {
+        visibleCompletedWords.add(
+          getWordKey(clue.row, clue.col, clue.direction)
+        );
+      }
+    }
+
+    const next = new Set<string>();
+
+    for (const clue of allClues) {
+      const key = getWordKey(clue.row, clue.col, clue.direction);
+      if (!visibleCompletedWords.has(key)) {
+        continue;
+      }
+
+      const cells = getWordCells(puzzle, clue.row, clue.col, clue.direction);
+      for (const cell of cells) {
+        next.add(`${cell.row}-${cell.col}`);
+      }
+    }
+
+    return next;
+  }, [correctCells, correctWords, immediateChecks, puzzle, revealedCells]);
+
+  const visibleCompletedWords = useMemo(() => {
     const next = new Set<string>();
     const allClues = [
       ...puzzle.clues.across.map((clue) => ({
@@ -493,19 +625,34 @@ export default function CrosswordGrid({ puzzle }: Props) {
     ];
 
     for (const clue of allClues) {
+      const cells = getWordCells(puzzle, clue.row, clue.col, clue.direction);
+      const hasRevealedCell = cells.some((cell) =>
+        revealedCells.has(`${cell.row}-${cell.col}`)
+      );
       const key = getWordKey(clue.row, clue.col, clue.direction);
-      if (!correctWords.has(key)) {
+
+      if (hasRevealedCell) {
         continue;
       }
 
-      const cells = getWordCells(puzzle, clue.row, clue.col, clue.direction);
-      for (const cell of cells) {
-        next.add(`${cell.row}-${cell.col}`);
+      if (immediateChecks) {
+        if (correctWords.has(key)) {
+          next.add(key);
+        }
+        continue;
+      }
+
+      const isVisiblyComplete = cells.every((cell) =>
+        correctCells.has(`${cell.row}-${cell.col}`)
+      );
+
+      if (isVisiblyComplete) {
+        next.add(key);
       }
     }
 
     return next;
-  }, [correctWords, puzzle]);
+  }, [correctCells, correctWords, immediateChecks, puzzle, revealedCells]);
 
   useEffect(() => {
     if (showWinModal) return;
@@ -523,7 +670,16 @@ export default function CrosswordGrid({ puzzle }: Props) {
         return;
       }
 
-      if (correctCells.has(`${selectedRow}-${selectedCol}`)) {
+      if (immediateChecks && correctCells.has(`${selectedRow}-${selectedCol}`)) {
+        const nextEditableCell = findNextEditableCellInWord(
+          selectedRow,
+          selectedCol,
+          direction
+        );
+        if (nextEditableCell) {
+          moveSelection(nextEditableCell.row, nextEditableCell.col);
+          focusActiveInput(nextEditableCell.row, nextEditableCell.col);
+        }
         return;
       }
 
@@ -538,11 +694,22 @@ export default function CrosswordGrid({ puzzle }: Props) {
         return next;
       });
 
-      clearCheckedCell(selectedRow, selectedCol);
+      if (!immediateChecks) {
+        clearCheckedCell(selectedRow, selectedCol);
+      }
       clearRevealedCell(selectedRow, selectedCol);
       clearRevealedWord(selectedRow, selectedCol, direction);
 
-      if (direction === "across") {
+      const nextEditableCell = findNextEditableCellInWord(
+        selectedRow,
+        selectedCol,
+        direction
+      );
+
+      if (nextEditableCell) {
+        moveSelection(nextEditableCell.row, nextEditableCell.col);
+        focusActiveInput(nextEditableCell.row, nextEditableCell.col);
+      } else if (direction === "across") {
         moveSelection(selectedRow, selectedCol + 1);
         focusActiveInput(selectedRow, selectedCol + 1);
       } else {
@@ -554,6 +721,7 @@ export default function CrosswordGrid({ puzzle }: Props) {
       direction,
       correctCells,
       evaluateCorrectWords,
+      findNextEditableCellInWord,
       focusActiveInput,
       isBlackCell,
       moveSelection,
@@ -561,6 +729,7 @@ export default function CrosswordGrid({ puzzle }: Props) {
       selectedCol,
       selectedRow,
       showWinModal,
+      immediateChecks,
     ]
   );
 
@@ -582,7 +751,16 @@ export default function CrosswordGrid({ puzzle }: Props) {
       if (event.key === "Backspace") {
         event.preventDefault();
 
-        if (correctCells.has(`${row}-${col}`)) {
+        if (immediateChecks && correctCells.has(`${row}-${col}`)) {
+          const nextEditableCell = findNextEditableCellInWord(
+            row,
+            col,
+            direction
+          );
+          if (nextEditableCell) {
+            moveSelection(nextEditableCell.row, nextEditableCell.col);
+            focusActiveInput(nextEditableCell.row, nextEditableCell.col);
+          }
           return;
         }
 
@@ -648,8 +826,10 @@ export default function CrosswordGrid({ puzzle }: Props) {
       direction,
       correctCells,
       evaluateCorrectWords,
+      findNextEditableCellInWord,
       focusActiveInput,
       handleLetterInput,
+      immediateChecks,
       isBlackCell,
       moveSelection,
       revealedCells,
@@ -670,7 +850,7 @@ export default function CrosswordGrid({ puzzle }: Props) {
       }
 
       if (letter === "") {
-        if (correctCells.has(`${row}-${col}`)) {
+        if (immediateChecks && correctCells.has(`${row}-${col}`)) {
           return;
         }
 
@@ -683,7 +863,7 @@ export default function CrosswordGrid({ puzzle }: Props) {
         clearCheckedCell(row, col);
       }
     },
-    [correctCells, evaluateCorrectWords, handleLetterInput]
+    [correctCells, evaluateCorrectWords, handleLetterInput, immediateChecks]
   );
 
   const handleMobileInputChange = useCallback(
@@ -847,7 +1027,7 @@ export default function CrosswordGrid({ puzzle }: Props) {
   }, [activeWordCells, direction, puzzle, selectedCol, selectedRow]);
 
   const totalWordCount = puzzle.clues.across.length + puzzle.clues.down.length;
-  const completedCount = correctWords.size;
+  const completedCount = visibleCompletedWords.size;
   const fillProgress = Math.round((completedCount / totalWordCount) * 100);
   const hasReveals = revealedCells.size > 0;
 
@@ -1050,7 +1230,9 @@ export default function CrosswordGrid({ puzzle }: Props) {
                                 maxLength={1}
                                 value={userGrid[rowIndex]?.[colIndex] ?? ""}
                                 readOnly={
-                                  isRevealed || correctCells.has(cellKey) || usesTouchKeyboard
+                                  isRevealed ||
+                                  (immediateChecks && correctCells.has(cellKey)) ||
+                                  usesTouchKeyboard
                                 }
                                 aria-label={`Row ${rowIndex + 1} Column ${colIndex + 1}`}
                                 onClick={() => handleCellClick(rowIndex, colIndex)}
@@ -1084,7 +1266,7 @@ export default function CrosswordGrid({ puzzle }: Props) {
                 activeDirection={direction}
                 activeRow={activeWordCells[0]?.row ?? selectedRow}
                 activeCol={activeWordCells[0]?.col ?? selectedCol}
-                completedWords={correctWords}
+                completedWords={visibleCompletedWords}
                 revealedWords={revealedWords}
                 onSelectClue={handleSelectClue}
               />

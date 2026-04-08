@@ -36,6 +36,7 @@ type StoredStats = {
 
 const THEME_KEY = "letterbeat-theme";
 const STATS_KEY = "crossword-daily-stats-v1";
+const IMMEDIATE_CHECKS_KEY = "letterbeat-immediate-checks";
 const THEME_EVENT = "letterbeat-theme-change";
 const ARCHIVE_EVENT = "letterbeat-archive-change";
 
@@ -111,6 +112,26 @@ function subscribeToTheme(onStoreChange: () => void) {
   };
 }
 
+function subscribeToImmediateChecks(onStoreChange: () => void) {
+  if (typeof window === "undefined") {
+    return () => undefined;
+  }
+
+  const onStorage = (event: StorageEvent) => {
+    if (event.key === IMMEDIATE_CHECKS_KEY) {
+      onStoreChange();
+    }
+  };
+
+  window.addEventListener("storage", onStorage);
+  window.addEventListener(ARCHIVE_EVENT, onStoreChange);
+
+  return () => {
+    window.removeEventListener("storage", onStorage);
+    window.removeEventListener(ARCHIVE_EVENT, onStoreChange);
+  };
+}
+
 function getThemeSnapshot(): ThemeMode {
   if (typeof window === "undefined") {
     return "light";
@@ -124,6 +145,14 @@ function getThemeSnapshot(): ThemeMode {
   return window.matchMedia("(prefers-color-scheme: dark)").matches
     ? "dark"
     : "light";
+}
+
+function getImmediateChecksSnapshot() {
+  if (typeof window === "undefined") {
+    return false;
+  }
+
+  return window.localStorage.getItem(IMMEDIATE_CHECKS_KEY) === "true";
 }
 
 function getArchiveStatusesSnapshot(
@@ -231,6 +260,11 @@ export default function HomeClientWithPuzzle({
     getThemeSnapshot,
     () => "light"
   );
+  const immediateChecks = useSyncExternalStore(
+    subscribeToImmediateChecks,
+    getImmediateChecksSnapshot,
+    () => false
+  );
 
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", theme);
@@ -303,6 +337,15 @@ export default function HomeClientWithPuzzle({
     const nextTheme = theme === "light" ? "dark" : "light";
     window.localStorage.setItem(THEME_KEY, nextTheme);
     window.dispatchEvent(new Event(THEME_EVENT));
+  }
+
+  function toggleImmediateChecks() {
+    const nextValue = !immediateChecks;
+    window.localStorage.setItem(
+      IMMEDIATE_CHECKS_KEY,
+      nextValue ? "true" : "false"
+    );
+    window.dispatchEvent(new Event(ARCHIVE_EVENT));
   }
 
   function renderStatusBadge(status: ArchiveStatus, isSelected: boolean) {
@@ -415,7 +458,7 @@ export default function HomeClientWithPuzzle({
         </header>
 
         <div className="mt-6">
-          <CrosswordGrid puzzle={puzzle} />
+          <CrosswordGrid immediateChecks={immediateChecks} puzzle={puzzle} />
         </div>
       </div>
 
@@ -468,6 +511,33 @@ export default function HomeClientWithPuzzle({
                   automatically.
                 </li>
               </ul>
+              <div className="mt-4 flex items-center justify-between gap-3 rounded-2xl border border-[var(--line)] bg-[var(--surface)] px-4 py-3">
+                <div>
+                  <p className="text-sm font-semibold text-[var(--ink)]">
+                    Immediate checks
+                  </p>
+                  <p className="mt-1 text-xs text-[var(--muted)]">
+                    Lock in correct letters as you type.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={immediateChecks}
+                  onClick={toggleImmediateChecks}
+                  className={`relative inline-flex h-8 w-14 items-center rounded-full border transition ${
+                    immediateChecks
+                      ? "border-[var(--accent)] bg-[var(--accent)]"
+                      : "border-[var(--line-strong)] bg-[var(--card-muted)]"
+                  }`}
+                >
+                  <span
+                    className={`inline-block h-6 w-6 rounded-full bg-white shadow-[0_6px_16px_rgba(18,31,53,0.18)] transition ${
+                      immediateChecks ? "translate-x-7" : "translate-x-1"
+                    }`}
+                  />
+                </button>
+              </div>
             </section>
 
             <section className="mt-5 rounded-[28px] border border-[var(--line)] bg-[var(--card)] p-5 shadow-[0_16px_40px_rgba(18,31,53,0.06)]">
