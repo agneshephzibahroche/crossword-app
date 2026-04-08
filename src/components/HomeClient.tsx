@@ -83,7 +83,7 @@ export default function HomeClient() {
           </div>
         </header>
 
-        <CrosswordGrid immediateChecks={false} puzzle={samplePuzzle} />
+        <CrosswordGrid puzzle={samplePuzzle} />
       </div>
     </main>
   );
