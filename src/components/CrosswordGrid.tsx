@@ -7,6 +7,7 @@ import { getCellNumber, getWordCells } from "@/lib/crossword";
 import { Direction, Puzzle } from "@/types/puzzle";
 
 type Props = {
+  immediateChecks: boolean;
   puzzle: Puzzle;
 };
 
@@ -63,7 +64,7 @@ function computeCorrectWords(
   return next;
 }
 
-export default function CrosswordGrid({ puzzle }: Props) {
+export default function CrosswordGrid({ immediateChecks, puzzle }: Props) {
   const cellInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
   const boardSectionRef = useRef<HTMLDivElement | null>(null);
   const mobileInputRef = useRef<HTMLInputElement | null>(null);
@@ -332,6 +333,34 @@ export default function CrosswordGrid({ puzzle }: Props) {
     });
   }
 
+  const setImmediateCheckState = useCallback(
+    (row: number, col: number, letter: string) => {
+    const key = `${row}-${col}`;
+    const isCorrectLetter = letter === puzzle.solution[row][col];
+
+    setWrongCells((prev) => {
+      const next = new Set(prev);
+      if (isCorrectLetter) {
+        next.delete(key);
+      } else {
+        next.add(key);
+      }
+      return next;
+    });
+
+    setCorrectCells((prev) => {
+      const next = new Set(prev);
+      if (isCorrectLetter) {
+        next.add(key);
+      } else {
+        next.delete(key);
+      }
+      return next;
+    });
+    },
+    [puzzle.solution]
+  );
+
   function clearRevealedCell(row: number, col: number) {
     const key = `${row}-${col}`;
 
@@ -538,7 +567,11 @@ export default function CrosswordGrid({ puzzle }: Props) {
         return next;
       });
 
-      clearCheckedCell(selectedRow, selectedCol);
+      if (immediateChecks) {
+        setImmediateCheckState(selectedRow, selectedCol, letter);
+      } else {
+        clearCheckedCell(selectedRow, selectedCol);
+      }
       clearRevealedCell(selectedRow, selectedCol);
       clearRevealedWord(selectedRow, selectedCol, direction);
 
@@ -552,6 +585,7 @@ export default function CrosswordGrid({ puzzle }: Props) {
     },
     [
       direction,
+      immediateChecks,
       correctCells,
       evaluateCorrectWords,
       focusActiveInput,
@@ -560,6 +594,7 @@ export default function CrosswordGrid({ puzzle }: Props) {
       revealedCells,
       selectedCol,
       selectedRow,
+      setImmediateCheckState,
       showWinModal,
     ]
   );

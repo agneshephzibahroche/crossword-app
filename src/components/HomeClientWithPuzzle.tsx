@@ -36,6 +36,7 @@ type StoredStats = {
 
 const THEME_KEY = "letterbeat-theme";
 const STATS_KEY = "crossword-daily-stats-v1";
+const IMMEDIATE_CHECKS_KEY = "letterbeat-immediate-checks";
 const THEME_EVENT = "letterbeat-theme-change";
 const ARCHIVE_EVENT = "letterbeat-archive-change";
 
@@ -217,6 +218,13 @@ export default function HomeClientWithPuzzle({
   today,
 }: Props) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [immediateChecks, setImmediateChecks] = useState(() => {
+    if (typeof window === "undefined") {
+      return false;
+    }
+
+    return window.localStorage.getItem(IMMEDIATE_CHECKS_KEY) === "true";
+  });
   const [archiveStatuses, setArchiveStatuses] = useState<
     Record<string, ArchiveStatus>
   >({});
@@ -303,6 +311,12 @@ export default function HomeClientWithPuzzle({
     const nextTheme = theme === "light" ? "dark" : "light";
     window.localStorage.setItem(THEME_KEY, nextTheme);
     window.dispatchEvent(new Event(THEME_EVENT));
+  }
+
+  function toggleImmediateChecks() {
+    const nextValue = !immediateChecks;
+    setImmediateChecks(nextValue);
+    window.localStorage.setItem(IMMEDIATE_CHECKS_KEY, String(nextValue));
   }
 
   function renderStatusBadge(status: ArchiveStatus, isSelected: boolean) {
@@ -415,7 +429,7 @@ export default function HomeClientWithPuzzle({
         </header>
 
         <div className="mt-6">
-          <CrosswordGrid puzzle={puzzle} />
+          <CrosswordGrid immediateChecks={immediateChecks} puzzle={puzzle} />
         </div>
       </div>
 
@@ -468,6 +482,33 @@ export default function HomeClientWithPuzzle({
                   automatically.
                 </li>
               </ul>
+              <div className="mt-4 flex items-center justify-between gap-3 rounded-2xl border border-[var(--line)] bg-[var(--surface)] px-4 py-3">
+                <div>
+                  <p className="text-sm font-semibold text-[var(--ink)]">
+                    Immediate checks
+                  </p>
+                  <p className="text-xs text-[var(--muted)]">
+                    Show correct and incorrect letters as you type.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={immediateChecks}
+                  onClick={toggleImmediateChecks}
+                  className={`relative h-7 w-12 rounded-full transition ${
+                    immediateChecks
+                      ? "bg-[var(--accent)]"
+                      : "bg-[var(--card-muted)]"
+                  }`}
+                >
+                  <span
+                    className={`absolute top-1 h-5 w-5 rounded-full bg-white shadow transition ${
+                      immediateChecks ? "left-6" : "left-1"
+                    }`}
+                  />
+                </button>
+              </div>
             </section>
 
             <section className="mt-5 rounded-[28px] border border-[var(--line)] bg-[var(--card)] p-5 shadow-[0_16px_40px_rgba(18,31,53,0.06)]">
