@@ -72,7 +72,8 @@ function getStoredStatsSnapshot(): StoredStats {
         ? parsed.completedWithRevealsDates
         : [],
       bestTimeSeconds:
-        typeof parsed.bestTimeSeconds === "number"
+        typeof parsed.bestTimeSeconds === "number" &&
+        parsed.bestTimeSeconds > 0
           ? parsed.bestTimeSeconds
           : null,
       cleanSolveTimesByDate,

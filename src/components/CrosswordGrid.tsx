@@ -137,7 +137,8 @@ export default function CrosswordGrid({ puzzle }: Props) {
           ? parsed.completedWithRevealsDates
           : [],
         bestTimeSeconds:
-          typeof parsed.bestTimeSeconds === "number"
+          typeof parsed.bestTimeSeconds === "number" &&
+          parsed.bestTimeSeconds > 0
             ? parsed.bestTimeSeconds
             : null,
         cleanSolveTimesByDate,
@@ -522,6 +523,10 @@ export default function CrosswordGrid({ puzzle }: Props) {
         return;
       }
 
+      if (correctCells.has(`${selectedRow}-${selectedCol}`)) {
+        return;
+      }
+
       if (revealedCells.has(`${selectedRow}-${selectedCol}`)) {
         return;
       }
@@ -547,6 +552,7 @@ export default function CrosswordGrid({ puzzle }: Props) {
     },
     [
       direction,
+      correctCells,
       evaluateCorrectWords,
       focusActiveInput,
       isBlackCell,
@@ -575,6 +581,10 @@ export default function CrosswordGrid({ puzzle }: Props) {
 
       if (event.key === "Backspace") {
         event.preventDefault();
+
+        if (correctCells.has(`${row}-${col}`)) {
+          return;
+        }
 
         if (revealedCells.has(`${row}-${col}`)) {
           return;
@@ -636,6 +646,7 @@ export default function CrosswordGrid({ puzzle }: Props) {
     },
     [
       direction,
+      correctCells,
       evaluateCorrectWords,
       focusActiveInput,
       handleLetterInput,
@@ -659,6 +670,10 @@ export default function CrosswordGrid({ puzzle }: Props) {
       }
 
       if (letter === "") {
+        if (correctCells.has(`${row}-${col}`)) {
+          return;
+        }
+
         setUserGrid((prev) => {
           const next = prev.map((currentRow) => [...currentRow]);
           next[row][col] = "";
@@ -668,7 +683,7 @@ export default function CrosswordGrid({ puzzle }: Props) {
         clearCheckedCell(row, col);
       }
     },
-    [evaluateCorrectWords, handleLetterInput]
+    [correctCells, evaluateCorrectWords, handleLetterInput]
   );
 
   const handleMobileInputChange = useCallback(
@@ -1034,7 +1049,9 @@ export default function CrosswordGrid({ puzzle }: Props) {
                                 spellCheck={false}
                                 maxLength={1}
                                 value={userGrid[rowIndex]?.[colIndex] ?? ""}
-                                readOnly={isRevealed || usesTouchKeyboard}
+                                readOnly={
+                                  isRevealed || correctCells.has(cellKey) || usesTouchKeyboard
+                                }
                                 aria-label={`Row ${rowIndex + 1} Column ${colIndex + 1}`}
                                 onClick={() => handleCellClick(rowIndex, colIndex)}
                                 onFocus={() => {
