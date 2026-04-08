@@ -1,6 +1,7 @@
 import generatedSchedule from "@/lib/generatedPuzzleSchedule.json";
 import {
   ANCHOR_DATE,
+  type GeneratedMeta,
   generateFallbackPuzzle,
   generateRecentWindow,
   RECENT_ARCHIVE_DAYS,
@@ -20,12 +21,25 @@ type PuzzleArchiveEntry = {
 
 const SCHEDULE = generatedSchedule as Record<string, Puzzle>;
 const runtimeCache = new Map<string, Puzzle>();
+const recentWindowCache = new Map<string, Map<string, GeneratedMeta>>();
 
 export type { PuzzleArchiveEntry };
 
 export function seedRecentWindow(todayDate: string, days = RECENT_ARCHIVE_DAYS) {
+  const normalizedDays = Math.min(days, RECENT_ARCHIVE_DAYS);
+  const cacheKey = `${todayDate}:${normalizedDays}`;
+  const cached = recentWindowCache.get(cacheKey);
+
+  if (cached) {
+    for (const [date, generated] of cached.entries()) {
+      runtimeCache.set(date, generated.puzzle);
+    }
+
+    return cached;
+  }
+
   const recentDates = Array.from(
-    { length: Math.min(days, RECENT_ARCHIVE_DAYS) },
+    { length: normalizedDays },
     (_, index) => shiftDate(todayDate, -index)
   ).reverse();
   const recentWindow = generateRecentWindow(recentDates);
@@ -34,6 +48,7 @@ export function seedRecentWindow(todayDate: string, days = RECENT_ARCHIVE_DAYS) 
     runtimeCache.set(date, generated.puzzle);
   }
 
+  recentWindowCache.set(cacheKey, recentWindow);
   return recentWindow;
 }
 
