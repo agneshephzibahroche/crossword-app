@@ -13,6 +13,7 @@ export type GeneratedMeta = {
   signature: string;
   wordSignature: string;
   clues: string[];
+  answers: string[];
   puzzle: Puzzle;
 };
 
@@ -26,6 +27,8 @@ export const ANCHOR_DATE = "2020-01-01";
 export const RECENT_SIGNATURE_LOOKBACK = 24;
 export const RECENT_WORDSET_LOOKBACK = 12;
 export const RECENT_PATTERN_LOOKBACK = 4;
+export const RECENT_CLUE_LOOKBACK = 10;
+export const RECENT_ANSWER_LOOKBACK = 14;
 export const MAX_ATTEMPTS = 40;
 export const STRICT_WINDOW_ATTEMPTS = 36;
 export const RECENT_ARCHIVE_DAYS = 3;
@@ -377,6 +380,7 @@ function buildPuzzle(dateKey: string, pattern: PatternTemplate, seed: string) {
     .map((entry) => entry.word)
     .sort()
     .join("|");
+  const answers = [...assignment.values()].map((entry) => entry.word);
   const clueList = [...across, ...down].map((entry) => entry.clue);
 
   return {
@@ -384,6 +388,7 @@ function buildPuzzle(dateKey: string, pattern: PatternTemplate, seed: string) {
     signature,
     wordSignature,
     clues: clueList,
+    answers,
     puzzle: {
       id: `${dateKey}-${pattern.id}-${hashString(signature).toString(16)}`,
       date: dateKey,
@@ -415,6 +420,7 @@ export function generateSingleDate(
   const recentWordSignatures = new Set<string>();
   const recentPatterns = new Set<string>();
   const recentClues = new Set<string>();
+  const recentAnswers = new Set<string>();
 
   previousDates.forEach((previousDate, index) => {
     const previous = localCache.get(previousDate);
@@ -435,8 +441,12 @@ export function generateSingleDate(
       recentPatterns.add(previous.patternId);
     }
 
-    if (index < 3) {
+    if (index < RECENT_CLUE_LOOKBACK) {
       previous.clues.forEach((clue) => recentClues.add(clue));
+    }
+
+    if (index < RECENT_ANSWER_LOOKBACK) {
+      previous.answers.forEach((answer) => recentAnswers.add(answer));
     }
   });
 
@@ -477,6 +487,10 @@ export function generateSingleDate(
       }
 
       if (candidate.clues.some((clue) => recentClues.has(clue))) {
+        continue;
+      }
+
+      if (candidate.answers.some((answer) => recentAnswers.has(answer))) {
         continue;
       }
 
