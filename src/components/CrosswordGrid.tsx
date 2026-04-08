@@ -610,6 +610,11 @@ export default function CrosswordGrid({ immediateChecks, puzzle }: Props) {
 
       if (/^[a-zA-Z]$/.test(event.key)) {
         event.preventDefault();
+
+        if (correctCells.has(`${row}-${col}`)) {
+          return;
+        }
+
         handleLetterInput(event.key.toUpperCase());
         return;
       }
@@ -696,6 +701,12 @@ export default function CrosswordGrid({ immediateChecks, puzzle }: Props) {
   const handleCellInputChange = useCallback(
     (event: ChangeEvent<HTMLInputElement>, row: number, col: number) => {
       const letter = event.currentTarget.value.slice(-1).toUpperCase();
+
+      if (correctCells.has(`${row}-${col}`)) {
+        event.currentTarget.value = userGrid[row]?.[col] ?? "";
+        return;
+      }
+
       setSelectedRow(row);
       setSelectedCol(col);
 
@@ -718,7 +729,7 @@ export default function CrosswordGrid({ immediateChecks, puzzle }: Props) {
         clearCheckedCell(row, col);
       }
     },
-    [correctCells, evaluateCorrectWords, handleLetterInput]
+    [correctCells, evaluateCorrectWords, handleLetterInput, userGrid]
   );
 
   const handleMobileInputChange = useCallback(
