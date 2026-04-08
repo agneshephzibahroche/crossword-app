@@ -66,9 +66,11 @@ function computeCorrectWords(
 export default function CrosswordGrid({ puzzle }: Props) {
   const cellInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
   const boardSectionRef = useRef<HTMLDivElement | null>(null);
+  const mobileInputRef = useRef<HTMLInputElement | null>(null);
   const [selectedRow, setSelectedRow] = useState(0);
   const [selectedCol, setSelectedCol] = useState(0);
   const [direction, setDirection] = useState<Direction>("across");
+  const [usesTouchKeyboard, setUsesTouchKeyboard] = useState(false);
   const [wrongCells, setWrongCells] = useState<Set<string>>(new Set());
   const [correctCells, setCorrectCells] = useState<Set<string>>(new Set());
   const [correctWords, setCorrectWords] = useState<Set<string>>(new Set());
@@ -95,6 +97,20 @@ export default function CrosswordGrid({ puzzle }: Props) {
   useEffect(() => {
     setUserGrid(emptyGrid);
   }, [emptyGrid]);
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia("(pointer: coarse)");
+    const updateTouchKeyboard = () => {
+      setUsesTouchKeyboard(mediaQuery.matches);
+    };
+
+    updateTouchKeyboard();
+    mediaQuery.addEventListener("change", updateTouchKeyboard);
+
+    return () => {
+      mediaQuery.removeEventListener("change", updateTouchKeyboard);
+    };
+  }, []);
 
   useEffect(() => {
     const raw = localStorage.getItem(STATS_KEY);
@@ -245,18 +261,32 @@ export default function CrosswordGrid({ puzzle }: Props) {
     });
   }, []);
 
+  const focusActiveInput = useCallback(
+    (row: number, col: number) => {
+      if (usesTouchKeyboard) {
+        window.requestAnimationFrame(() => {
+          mobileInputRef.current?.focus();
+        });
+        return;
+      }
+
+      focusCell(row, col);
+    },
+    [focusCell, usesTouchKeyboard]
+  );
+
   function handleCellClick(row: number, col: number) {
     if (isBlackCell(row, col)) return;
 
     if (selectedRow === row && selectedCol === col) {
       setDirection((prev) => (prev === "across" ? "down" : "across"));
-      focusCell(row, col);
+      focusActiveInput(row, col);
       return;
     }
 
     setSelectedRow(row);
     setSelectedCol(col);
-    focusCell(row, col);
+    focusActiveInput(row, col);
   }
 
   function handleSelectClue(
@@ -275,7 +305,7 @@ export default function CrosswordGrid({ puzzle }: Props) {
       });
     }
 
-    focusCell(row, col);
+    focusActiveInput(row, col);
   }
 
   function clearCheckedCell(row: number, col: number) {
@@ -502,16 +532,16 @@ export default function CrosswordGrid({ puzzle }: Props) {
 
       if (direction === "across") {
         moveSelection(selectedRow, selectedCol + 1);
-        focusCell(selectedRow, selectedCol + 1);
+        focusActiveInput(selectedRow, selectedCol + 1);
       } else {
         moveSelection(selectedRow + 1, selectedCol);
-        focusCell(selectedRow + 1, selectedCol);
+        focusActiveInput(selectedRow + 1, selectedCol);
       }
     },
     [
       direction,
       evaluateCorrectWords,
-      focusCell,
+      focusActiveInput,
       isBlackCell,
       moveSelection,
       revealedCells,
@@ -552,10 +582,10 @@ export default function CrosswordGrid({ puzzle }: Props) {
           });
         } else if (direction === "across") {
           moveSelection(row, col - 1);
-          focusCell(row, col - 1);
+          focusActiveInput(row, col - 1);
         } else {
           moveSelection(row - 1, col);
-          focusCell(row - 1, col);
+          focusActiveInput(row - 1, col);
         }
 
         clearCheckedCell(row, col);
@@ -573,34 +603,34 @@ export default function CrosswordGrid({ puzzle }: Props) {
       if (event.key === "ArrowRight") {
         event.preventDefault();
         moveSelection(row, col + 1);
-        focusCell(row, col + 1);
+        focusActiveInput(row, col + 1);
         return;
       }
 
       if (event.key === "ArrowLeft") {
         event.preventDefault();
         moveSelection(row, col - 1);
-        focusCell(row, col - 1);
+        focusActiveInput(row, col - 1);
         return;
       }
 
       if (event.key === "ArrowDown") {
         event.preventDefault();
         moveSelection(row + 1, col);
-        focusCell(row + 1, col);
+        focusActiveInput(row + 1, col);
         return;
       }
 
       if (event.key === "ArrowUp") {
         event.preventDefault();
         moveSelection(row - 1, col);
-        focusCell(row - 1, col);
+        focusActiveInput(row - 1, col);
       }
     },
     [
       direction,
       evaluateCorrectWords,
-      focusCell,
+      focusActiveInput,
       handleLetterInput,
       isBlackCell,
       moveSelection,
@@ -632,6 +662,20 @@ export default function CrosswordGrid({ puzzle }: Props) {
       }
     },
     [evaluateCorrectWords, handleLetterInput]
+  );
+
+  const handleMobileInputChange = useCallback(
+    (event: ChangeEvent<HTMLInputElement>) => {
+      const value = event.currentTarget.value.toUpperCase();
+      const letter = value.slice(-1).replace(/[^A-Z]/g, "");
+
+      if (letter) {
+        handleLetterInput(letter);
+      }
+
+      event.currentTarget.value = "";
+    },
+    [handleLetterInput]
   );
 
   const isComplete = useMemo(() => {
@@ -821,7 +865,7 @@ export default function CrosswordGrid({ puzzle }: Props) {
                       type="button"
                       onClick={() => {
                         setDirection("across");
-                        focusCell(selectedRow, selectedCol);
+                        focusActiveInput(selectedRow, selectedCol);
                       }}
                       className={`rounded-full border px-3 py-1.5 text-sm font-semibold transition ${
                         direction === "across"
@@ -835,7 +879,7 @@ export default function CrosswordGrid({ puzzle }: Props) {
                       type="button"
                       onClick={() => {
                         setDirection("down");
-                        focusCell(selectedRow, selectedCol);
+                        focusActiveInput(selectedRow, selectedCol);
                       }}
                       className={`rounded-full border px-3 py-1.5 text-sm font-semibold transition ${
                         direction === "down"
@@ -903,6 +947,24 @@ export default function CrosswordGrid({ puzzle }: Props) {
                 className="flex justify-center rounded-[28px] border border-[var(--line)] bg-[var(--card-muted)] p-4 sm:p-5"
               >
                 <div className="relative inline-block rounded-[24px] border border-[var(--line-strong)] bg-[var(--surface)] p-2 shadow-[0_12px_24px_rgba(18,31,53,0.06)] sm:p-3">
+                  {usesTouchKeyboard && (
+                    <input
+                      ref={mobileInputRef}
+                      type="text"
+                      inputMode="text"
+                      autoCapitalize="characters"
+                      autoCorrect="off"
+                      autoComplete="off"
+                      spellCheck={false}
+                      enterKeyHint="done"
+                      onChange={handleMobileInputChange}
+                      onKeyDown={(event) =>
+                        handleKeyInput(event, selectedRow, selectedCol)
+                      }
+                      className="pointer-events-none absolute opacity-0"
+                      aria-label="Mobile crossword input"
+                    />
+                  )}
                   {puzzle.grid.map((row, rowIndex) => (
                     <div key={rowIndex} className="flex">
                       {row.map((cell, colIndex) => {
@@ -965,7 +1027,7 @@ export default function CrosswordGrid({ puzzle }: Props) {
                                 spellCheck={false}
                                 maxLength={1}
                                 value={userGrid[rowIndex]?.[colIndex] ?? ""}
-                                readOnly={isRevealed}
+                                readOnly={isRevealed || usesTouchKeyboard}
                                 aria-label={`Row ${rowIndex + 1} Column ${colIndex + 1}`}
                                 onClick={() => handleCellClick(rowIndex, colIndex)}
                                 onFocus={() => {
