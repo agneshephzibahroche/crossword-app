@@ -529,15 +529,15 @@ export default function HomeClientWithPuzzle({
                   role="switch"
                   aria-checked={immediateChecks}
                   onClick={toggleImmediateChecks}
-                  className={`relative inline-flex h-8 w-14 items-center rounded-full border transition ${
+                  className={`relative inline-flex h-8 w-14 items-center rounded-full border p-1 transition ${
                     immediateChecks
                       ? "border-[var(--accent)] bg-[var(--accent)]"
                       : "border-[var(--line-strong)] bg-[var(--card-muted)]"
                   }`}
                 >
                   <span
-                    className={`inline-block h-6 w-6 rounded-full bg-white shadow-[0_6px_16px_rgba(18,31,53,0.18)] transition ${
-                      immediateChecks ? "translate-x-7" : "translate-x-1"
+                    className={`inline-block h-[22px] w-[22px] rounded-full bg-white shadow-[0_6px_16px_rgba(18,31,53,0.18)] transition ${
+                      immediateChecks ? "translate-x-6" : "translate-x-0"
                     }`}
                   />
                 </button>

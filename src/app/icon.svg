@@ -1,0 +1,65 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <defs>
+    <linearGradient id="bg" x1="18" y1="14" x2="108" y2="114" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#fff9ef" />
+      <stop offset="0.42" stop-color="#ff8c78" />
+      <stop offset="1" stop-color="#43206f" />
+    </linearGradient>
+    <linearGradient id="grid" x1="34" y1="34" x2="94" y2="94" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#ffffff" />
+      <stop offset="1" stop-color="#ffe6dc" />
+    </linearGradient>
+  </defs>
+  <rect width="128" height="128" rx="28" fill="url(#bg)" />
+  <circle cx="96" cy="30" r="16" fill="#ffffff" fill-opacity="0.34" />
+  <circle cx="30" cy="100" r="18" fill="#201547" fill-opacity="0.22" />
+  <rect x="26" y="26" width="76" height="76" rx="20" fill="#fffdf8" fill-opacity="0.98" />
+  <rect x="33" y="33" width="62" height="62" rx="14" fill="url(#grid)" stroke="#6e2e62" stroke-opacity="0.3" />
+  <g stroke="#7f3256" stroke-opacity="0.32" stroke-width="2">
+    <path d="M45.4 33v62" />
+    <path d="M57.8 33v62" />
+    <path d="M70.2 33v62" />
+    <path d="M82.6 33v62" />
+    <path d="M33 45.4h62" />
+    <path d="M33 57.8h62" />
+    <path d="M33 70.2h62" />
+    <path d="M33 82.6h62" />
+  </g>
+  <g fill="#1a123f">
+    <rect x="45.4" y="45.4" width="12.4" height="12.4" rx="3.5" />
+    <rect x="70.2" y="45.4" width="12.4" height="12.4" rx="3.5" />
+    <rect x="45.4" y="70.2" width="12.4" height="12.4" rx="3.5" />
+    <rect x="70.2" y="70.2" width="12.4" height="12.4" rx="3.5" />
+  </g>
+  <text
+    x="64"
+    y="62"
+    text-anchor="middle"
+    dominant-baseline="middle"
+    font-family="'Libre Baskerville','Iowan Old Style','Palatino Linotype','Book Antiqua',Georgia,serif"
+    font-size="30"
+    font-weight="700"
+    fill="#fffaf6"
+    stroke="#5a2f56"
+    stroke-width="1.4"
+    paint-order="stroke fill"
+  >
+    LB
+  </text>
+  <text
+    x="64"
+    y="82"
+    text-anchor="middle"
+    dominant-baseline="middle"
+    font-family="'Avenir Next','Segoe UI','Helvetica Neue',Arial,sans-serif"
+    font-size="7"
+    font-weight="700"
+    letter-spacing="1.2"
+    fill="#fffaf6"
+    stroke="#5a2f56"
+    stroke-width="0.55"
+    paint-order="stroke fill"
+  >
+    LETTERBEAT
+  </text>
+</svg>

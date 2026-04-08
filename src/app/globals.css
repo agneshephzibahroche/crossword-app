@@ -52,6 +52,18 @@
   --action-button-border: var(--button-secondary-border);
   --action-button-text: var(--button-secondary-text);
   --action-button-active-text: var(--button-active-text);
+  --story-card-button-bg: linear-gradient(
+    135deg,
+    rgba(255, 244, 236, 0.96),
+    rgba(255, 226, 213, 0.94) 58%,
+    rgba(252, 240, 247, 0.96)
+  );
+  --story-card-button-border: rgba(127, 50, 86, 0.14);
+  --story-card-button-shadow: 0 12px 26px rgba(18, 31, 53, 0.08);
+  --story-card-button-shadow-hover: 0 16px 30px rgba(18, 31, 53, 0.12);
+  --story-card-kicker: rgba(127, 50, 86, 0.75);
+  --story-card-title: var(--ink);
+  --story-card-copy: var(--muted);
 }
 
 [data-theme="dark"] {
@@ -101,6 +113,18 @@
   --action-button-border: rgba(255, 184, 145, 0.72);
   --action-button-text: #1c102f;
   --action-button-active-text: #120a24;
+  --story-card-button-bg: linear-gradient(
+    135deg,
+    rgba(58, 43, 108, 0.96),
+    rgba(91, 53, 118, 0.96) 52%,
+    rgba(255, 118, 146, 0.88)
+  );
+  --story-card-button-border: rgba(255, 171, 196, 0.28);
+  --story-card-button-shadow: 0 14px 30px rgba(4, 6, 18, 0.3);
+  --story-card-button-shadow-hover: 0 18px 34px rgba(4, 6, 18, 0.38);
+  --story-card-kicker: rgba(255, 225, 236, 0.82);
+  --story-card-title: #fff8ff;
+  --story-card-copy: rgba(248, 244, 255, 0.82);
 }
 
 html,
