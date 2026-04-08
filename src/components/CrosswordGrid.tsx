@@ -300,11 +300,16 @@ export default function CrosswordGrid({ puzzle }: Props) {
     setSelectedCol(col);
     setDirection(nextDirection);
 
-    if (window.matchMedia("(max-width: 1023px)").matches) {
+    if (usesTouchKeyboard) {
       boardSectionRef.current?.scrollIntoView({
         behavior: "smooth",
         block: "center",
       });
+
+      mobileInputRef.current?.focus();
+      window.setTimeout(() => {
+        mobileInputRef.current?.focus();
+      }, 160);
     }
 
     focusActiveInput(row, col);
