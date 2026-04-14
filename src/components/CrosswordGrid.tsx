@@ -1653,7 +1653,7 @@ export default function CrosswordGrid({
                           <div
                             key={cellKey}
                             className={[
-                              "relative flex h-12 w-12 items-center justify-center border text-lg font-black uppercase transition-all duration-150 ease-out sm:h-14 sm:w-14",
+                              "relative m-[1px] flex h-12 w-12 items-center justify-center rounded-[10px] border text-lg font-black uppercase transition-all duration-150 ease-out sm:h-14 sm:w-14 sm:rounded-[12px]",
                               isBlack
                                 ? "border-[var(--black-cell)] bg-[var(--black-cell)]"
                                 : "border-[var(--line-strong)] bg-[var(--cell-bg)] text-[var(--cell-text)]",

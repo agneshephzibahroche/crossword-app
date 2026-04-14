@@ -134,7 +134,7 @@ function subscribeToImmediateChecks(onStoreChange: () => void) {
 
 function getThemeSnapshot(): ThemeMode {
   if (typeof window === "undefined") {
-    return "light";
+    return "dark";
   }
 
   const storedTheme = window.localStorage.getItem(THEME_KEY);
@@ -142,9 +142,7 @@ function getThemeSnapshot(): ThemeMode {
     return storedTheme;
   }
 
-  return window.matchMedia("(prefers-color-scheme: dark)").matches
-    ? "dark"
-    : "light";
+  return "dark";
 }
 
 function getImmediateChecksSnapshot() {
@@ -258,7 +256,7 @@ export default function HomeClientWithPuzzle({
   const theme = useSyncExternalStore(
     subscribeToTheme,
     getThemeSnapshot,
-    () => "light"
+    () => "dark"
   );
   const immediateChecks = useSyncExternalStore(
     subscribeToImmediateChecks,
