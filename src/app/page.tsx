@@ -2,9 +2,9 @@ import HomeClientWithPuzzle from "@/components/HomeClientWithPuzzle";
 import {
   getPuzzleArchive,
   getPuzzleForDate,
-  seedRecentWindow,
   getTodayDateKey,
 } from "@/lib/dailyPuzzle";
+import { unstable_cache } from "next/cache";
 import { headers } from "next/headers";
 
 type HomePageProps = {
@@ -12,6 +12,17 @@ type HomePageProps = {
     date?: string;
   }>;
 };
+
+const getCachedPageData = unstable_cache(
+  async (today: string, selectedDate: string) => ({
+    archive: getPuzzleArchive(selectedDate, 3, today),
+    puzzle: getPuzzleForDate(selectedDate),
+  }),
+  ["letterbeat-page-data"],
+  {
+    revalidate: 3600,
+  }
+);
 
 export default async function HomePage({ searchParams }: HomePageProps) {
   const resolvedSearchParams = await searchParams;
@@ -26,12 +37,12 @@ export default async function HomePage({ searchParams }: HomePageProps) {
     requestedDate && /^\d{4}-\d{2}-\d{2}$/.test(requestedDate)
       ? requestedDate
       : today;
-  seedRecentWindow(today, 3);
+  const { archive, puzzle } = await getCachedPageData(today, selectedDate);
 
   return (
     <HomeClientWithPuzzle
-      archive={getPuzzleArchive(selectedDate, 3, today)}
-      puzzle={getPuzzleForDate(selectedDate)}
+      archive={archive}
+      puzzle={puzzle}
       isArchiveView={Boolean(requestedDate && selectedDate !== today)}
       today={today}
     />

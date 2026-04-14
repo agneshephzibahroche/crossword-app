@@ -2,7 +2,6 @@ import generatedSchedule from "@/lib/generatedPuzzleSchedule.json";
 import {
   ANCHOR_DATE,
   type GeneratedMeta,
-  generateFallbackPuzzle,
   generateRecentWindow,
   RECENT_ARCHIVE_DAYS,
   shiftDate,
@@ -24,6 +23,11 @@ const runtimeCache = new Map<string, Puzzle>();
 const recentWindowCache = new Map<string, Map<string, GeneratedMeta>>();
 
 export type { PuzzleArchiveEntry };
+const FALLBACK_CONTEXT_DAYS = 5;
+
+export function hasScheduledPuzzle(dateKey: string) {
+  return Boolean(SCHEDULE[dateKey]);
+}
 
 export function seedRecentWindow(todayDate: string, days = RECENT_ARCHIVE_DAYS) {
   const normalizedDays = Math.min(days, RECENT_ARCHIVE_DAYS);
@@ -57,9 +61,17 @@ function resolveDate(dateKey: string): Puzzle {
     SCHEDULE[dateKey] ??
     runtimeCache.get(dateKey) ??
     (() => {
-      const fallback = generateFallbackPuzzle(dateKey);
-      runtimeCache.set(dateKey, fallback);
-      return fallback;
+      const contextDates = Array.from(
+        { length: FALLBACK_CONTEXT_DAYS },
+        (_, index) => shiftDate(dateKey, -(FALLBACK_CONTEXT_DAYS - 1 - index))
+      );
+      const generatedWindow = generateRecentWindow(contextDates);
+
+      for (const [generatedDate, generated] of generatedWindow.entries()) {
+        runtimeCache.set(generatedDate, generated.puzzle);
+      }
+
+      return runtimeCache.get(dateKey) ?? generatedWindow.get(dateKey)!.puzzle;
     })()
   );
 }
@@ -97,11 +109,15 @@ export function getPuzzleArchive(
   todayDate = getTodayDateKey()
 ) {
   const today = todayDate;
-  const recentWindow =
-    days <= RECENT_ARCHIVE_DAYS ? seedRecentWindow(today, days) : null;
+  const archiveDates = Array.from({ length: days }, (_, index) =>
+    shiftDate(today, -index)
+  );
+  const needsRecentGeneration =
+    days <= RECENT_ARCHIVE_DAYS &&
+    archiveDates.some((date) => !SCHEDULE[date] && !runtimeCache.has(date));
+  const recentWindow = needsRecentGeneration ? seedRecentWindow(today, days) : null;
 
-  return Array.from({ length: days }, (_, index) => {
-    const date = shiftDate(today, -index);
+  return archiveDates.map((date) => {
     const puzzle = recentWindow?.get(date)?.puzzle ?? getPuzzleForDate(date);
 
     return {

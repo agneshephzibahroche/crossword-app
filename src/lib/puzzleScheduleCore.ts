@@ -28,15 +28,15 @@ type GenerateOptions = {
 
 export const ANCHOR_DATE = "2020-01-01";
 export const RECENT_SIGNATURE_LOOKBACK = 24;
-export const RECENT_WORDSET_LOOKBACK = 12;
-export const RECENT_PATTERN_LOOKBACK = 4;
-export const RECENT_CLUE_LOOKBACK = 10;
-export const RECENT_ANSWER_LOOKBACK = 14;
-export const MAX_ATTEMPTS = 40;
-export const STRICT_WINDOW_ATTEMPTS = 36;
+export const RECENT_WORDSET_LOOKBACK = 20;
+export const RECENT_PATTERN_LOOKBACK = 6;
+export const RECENT_CLUE_LOOKBACK = 28;
+export const RECENT_ANSWER_LOOKBACK = 35;
+export const MAX_ATTEMPTS = 28;
+export const STRICT_WINDOW_ATTEMPTS = 24;
 export const RECENT_ARCHIVE_DAYS = 3;
 export const SCHEDULE_START = "2025-01-01";
-export const SCHEDULE_END = "2030-12-31";
+export const SCHEDULE_END = "2028-12-31";
 const MIN_QUALITY_SCORE = 66;
 const MAX_SHORT_FILL = 4;
 const MAX_GLUE_WORDS = 2;
@@ -54,14 +54,14 @@ const PATTERN_TEMPLATES: PatternTemplate[] = [
     ],
   },
   {
-    id: "triple-stack",
+    id: "offset-cross",
     title: "Ribbon Grid",
     grid: [
       ["", "", "", "", ""],
-      ["", "#", "", "#", ""],
+      ["", "#", "", "", ""],
       ["", "", "", "", ""],
-      ["", "#", "", "#", ""],
-      ["", "", "", "", ""],
+      ["", "", "", "#", ""],
+      ["", "", "", "", "#"],
     ],
   },
   {
@@ -76,13 +76,13 @@ const PATTERN_TEMPLATES: PatternTemplate[] = [
     ],
   },
   {
-    id: "pillars",
+    id: "stagger",
     title: "Pulse Grid",
     grid: [
       ["", "", "", "", ""],
-      ["#", "", "#", "", "#"],
+      ["#", "", "", "#", ""],
       ["", "", "", "", ""],
-      ["#", "", "#", "", "#"],
+      ["", "#", "", "", "#"],
       ["", "", "", "", ""],
     ],
   },
@@ -117,6 +117,39 @@ const PATTERN_TEMPLATES: PatternTemplate[] = [
       ["", "", "", "#", ""],
       ["", "", "", "", ""],
       ["", "", "#", "", ""],
+    ],
+  },
+  {
+    id: "drift",
+    title: "Drift Grid",
+    grid: [
+      ["", "", "", "", "#"],
+      ["", "#", "", "", ""],
+      ["", "", "", "", ""],
+      ["#", "", "", "#", ""],
+      ["", "", "", "", ""],
+    ],
+  },
+  {
+    id: "swing",
+    title: "Swing Grid",
+    grid: [
+      ["", "", "#", "", ""],
+      ["", "", "", "", ""],
+      ["", "#", "", "", "#"],
+      ["", "", "", "", ""],
+      ["#", "", "", "", ""],
+    ],
+  },
+  {
+    id: "scatter",
+    title: "Scatter Grid",
+    grid: [
+      ["", "", "", "", ""],
+      ["#", "", "", "", ""],
+      ["", "", "#", "", ""],
+      ["", "", "", "", "#"],
+      ["", "", "", "", ""],
     ],
   },
 ];
