@@ -29,8 +29,14 @@ export const ANCHOR_DATE = "2020-01-01";
 export const RECENT_SIGNATURE_LOOKBACK = 24;
 export const RECENT_WORDSET_LOOKBACK = 20;
 export const RECENT_PATTERN_LOOKBACK = 6;
-export const RECENT_CLUE_LOOKBACK = 28;
-export const RECENT_ANSWER_LOOKBACK = 35;
+// These two are bounded by the smallest per-length word bucket (3-letter
+// fill, ~265 words) versus how many of that length a day's grids need on
+// average (~5/day across the 10 templates). 35/28 left ~0 slack -- once the
+// window filled up, almost every day fell through to the fully
+// unconstrained fallback below, defeating the point of "don't repeat a
+// recent word." 24 keeps demand comfortably under supply.
+export const RECENT_CLUE_LOOKBACK = 24;
+export const RECENT_ANSWER_LOOKBACK = 24;
 const MAX_LOOKBACK = Math.max(
   RECENT_SIGNATURE_LOOKBACK,
   RECENT_WORDSET_LOOKBACK,
