@@ -23,7 +23,6 @@ export type GeneratedMeta = {
 type GenerateOptions = {
   attemptBudget?: number;
   seedSalt?: string;
-  requireUniqueClues?: boolean;
 };
 
 export const ANCHOR_DATE = "2020-01-01";
@@ -32,6 +31,13 @@ export const RECENT_WORDSET_LOOKBACK = 20;
 export const RECENT_PATTERN_LOOKBACK = 6;
 export const RECENT_CLUE_LOOKBACK = 28;
 export const RECENT_ANSWER_LOOKBACK = 35;
+const MAX_LOOKBACK = Math.max(
+  RECENT_SIGNATURE_LOOKBACK,
+  RECENT_WORDSET_LOOKBACK,
+  RECENT_PATTERN_LOOKBACK,
+  RECENT_CLUE_LOOKBACK,
+  RECENT_ANSWER_LOOKBACK
+);
 export const MAX_ATTEMPTS = 28;
 export const STRICT_WINDOW_ATTEMPTS = 24;
 export const RECENT_ARCHIVE_DAYS = 3;
@@ -40,24 +46,21 @@ export const SCHEDULE_END = "2028-12-31";
 const MIN_QUALITY_SCORE = 66;
 const MAX_SHORT_FILL = 4;
 const MAX_GLUE_WORDS = 2;
+const TOTAL_SEARCH_BUDGET_PER_DATE = 20000;
 
+// Every template below is 180°-rotationally symmetric and, unlike the
+// original set, has no slot shorter than 3 letters. The old grids leaned
+// on 2-letter fill (up to 8 slots per puzzle) drawn from a pool of only
+// ~28 short glue words (AT, OF, TO, ...), which both made puzzles feel
+// repetitive and made the recent-word uniqueness constraint in
+// generateSingleDate nearly unsatisfiable after just a few days -- causing
+// the backtracking solver to exhaustively search before giving up.
 const PATTERN_TEMPLATES: PatternTemplate[] = [
   {
     id: "classic",
     title: "Letterbeat",
     grid: [
-      ["", "", "#", "", ""],
-      ["", "", "", "", ""],
-      ["#", "", "", "", "#"],
-      ["", "", "", "", ""],
-      ["", "", "#", "", ""],
-    ],
-  },
-  {
-    id: "offset-cross",
-    title: "Ribbon Grid",
-    grid: [
-      ["", "", "", "", ""],
+      ["#", "", "", "", ""],
       ["", "#", "", "", ""],
       ["", "", "", "", ""],
       ["", "", "", "#", ""],
@@ -65,35 +68,46 @@ const PATTERN_TEMPLATES: PatternTemplate[] = [
     ],
   },
   {
+    id: "offset-cross",
+    title: "Ribbon Grid",
+    grid: [
+      ["", "#", "", "", ""],
+      ["", "", "", "", ""],
+      ["", "", "", "", ""],
+      ["", "", "", "", ""],
+      ["", "", "", "#", ""],
+    ],
+  },
+  {
     id: "hourglass",
     title: "Spark Grid",
     grid: [
-      ["", "#", "", "#", ""],
+      ["", "", "", "#", ""],
       ["", "", "", "", ""],
-      ["#", "", "", "", "#"],
       ["", "", "", "", ""],
-      ["", "#", "", "#", ""],
+      ["", "", "", "", ""],
+      ["", "#", "", "", ""],
     ],
   },
   {
     id: "stagger",
     title: "Pulse Grid",
     grid: [
+      ["", "#", "", "", ""],
+      ["", "", "", "", "#"],
       ["", "", "", "", ""],
-      ["#", "", "", "#", ""],
-      ["", "", "", "", ""],
-      ["", "#", "", "", "#"],
-      ["", "", "", "", ""],
+      ["#", "", "", "", ""],
+      ["", "", "", "#", ""],
     ],
   },
   {
     id: "corners",
     title: "Corner Turn",
     grid: [
-      ["", "", "", "#", ""],
-      ["", "#", "", "", ""],
       ["", "", "", "", ""],
-      ["#", "", "", "#", ""],
+      ["#", "", "", "", ""],
+      ["", "", "", "", ""],
+      ["", "", "", "", "#"],
       ["", "", "", "", ""],
     ],
   },
@@ -101,11 +115,11 @@ const PATTERN_TEMPLATES: PatternTemplate[] = [
     id: "zigzag",
     title: "Zigzag Grid",
     grid: [
-      ["", "", "#", "", ""],
-      ["", "", "", "", "#"],
-      ["#", "", "", "", ""],
-      ["", "", "", "", "#"],
-      ["", "", "#", "", ""],
+      ["", "", "", "", ""],
+      ["", "#", "", "", ""],
+      ["", "", "", "", ""],
+      ["", "", "", "#", ""],
+      ["", "", "", "", ""],
     ],
   },
   {
@@ -113,20 +127,20 @@ const PATTERN_TEMPLATES: PatternTemplate[] = [
     title: "Lanes Grid",
     grid: [
       ["", "", "", "", ""],
-      ["", "#", "", "", ""],
       ["", "", "", "#", ""],
       ["", "", "", "", ""],
-      ["", "", "#", "", ""],
+      ["", "#", "", "", ""],
+      ["", "", "", "", ""],
     ],
   },
   {
     id: "drift",
     title: "Drift Grid",
     grid: [
-      ["", "", "", "", "#"],
-      ["", "#", "", "", ""],
       ["", "", "", "", ""],
-      ["#", "", "", "#", ""],
+      ["", "", "", "", "#"],
+      ["", "", "", "", ""],
+      ["#", "", "", "", ""],
       ["", "", "", "", ""],
     ],
   },
@@ -134,22 +148,22 @@ const PATTERN_TEMPLATES: PatternTemplate[] = [
     id: "swing",
     title: "Swing Grid",
     grid: [
-      ["", "", "#", "", ""],
+      ["#", "", "", "", "#"],
       ["", "", "", "", ""],
-      ["", "#", "", "", "#"],
       ["", "", "", "", ""],
-      ["#", "", "", "", ""],
+      ["", "", "", "", ""],
+      ["#", "", "", "", "#"],
     ],
   },
   {
     id: "scatter",
     title: "Scatter Grid",
     grid: [
+      ["", "#", "", "", ""],
+      ["", "#", "", "", ""],
       ["", "", "", "", ""],
-      ["#", "", "", "", ""],
-      ["", "", "#", "", ""],
-      ["", "", "", "", "#"],
-      ["", "", "", "", ""],
+      ["", "", "", "#", ""],
+      ["", "", "", "#", ""],
     ],
   },
 ];
@@ -220,10 +234,14 @@ function getEntryPriority(entry: DictionaryEntry, seed: string) {
 }
 
 function sortCandidates(candidates: DictionaryEntry[], seed: string) {
-  return [...candidates].sort(
-    (left, right) =>
-      getEntryPriority(right, seed) - getEntryPriority(left, seed)
-  );
+  // Priority only depends on the (entry, seed) pair, so compute it once per
+  // candidate instead of recomputing it (with its hashString call) on every
+  // comparison a sort makes -- for a length-5 bucket of 200+ words that's
+  // the difference between O(n) and O(n log n) hashString calls.
+  return candidates
+    .map((entry) => ({ entry, priority: getEntryPriority(entry, seed) }))
+    .sort((left, right) => right.priority - left.priority)
+    .map(({ entry }) => entry);
 }
 
 export function toDateKey(date: Date) {
@@ -244,39 +262,47 @@ function getSlotKey(slot: Slot) {
   return `${slot.row}-${slot.col}-${slot.direction}`;
 }
 
-function getCellsForSlot(slot: Slot) {
-  return Array.from({ length: slot.length }, (_, index) => ({
-    row: slot.direction === "across" ? slot.row : slot.row + index,
-    col: slot.direction === "across" ? slot.col + index : slot.col,
-  }));
-}
-
+// fitsWord runs once per candidate word considered at every search step, so
+// it dominates total allocation pressure -- these three helpers index the
+// grid directly instead of building an array of {row, col} cell objects.
 function fitsWord(grid: string[][], slot: Slot, word: string) {
-  const cells = getCellsForSlot(slot);
+  const isAcross = slot.direction === "across";
 
-  return cells.every(({ row, col }, index) => {
+  for (let index = 0; index < slot.length; index += 1) {
+    const row = isAcross ? slot.row : slot.row + index;
+    const col = isAcross ? slot.col + index : slot.col;
     const existing = grid[row][col];
-    return existing === "" || existing === word[index];
-  });
+
+    if (existing !== "" && existing !== word[index]) {
+      return false;
+    }
+  }
+
+  return true;
 }
 
 function placeWord(grid: string[][], slot: Slot, word: string) {
-  const cells = getCellsForSlot(slot);
-  const previous = cells.map(({ row, col }) => grid[row][col]);
+  const isAcross = slot.direction === "across";
+  const previous: string[] = new Array(slot.length);
 
-  cells.forEach(({ row, col }, index) => {
+  for (let index = 0; index < slot.length; index += 1) {
+    const row = isAcross ? slot.row : slot.row + index;
+    const col = isAcross ? slot.col + index : slot.col;
+    previous[index] = grid[row][col];
     grid[row][col] = word[index];
-  });
+  }
 
   return previous;
 }
 
 function restoreWord(grid: string[][], slot: Slot, previous: string[]) {
-  const cells = getCellsForSlot(slot);
+  const isAcross = slot.direction === "across";
 
-  cells.forEach(({ row, col }, index) => {
+  for (let index = 0; index < slot.length; index += 1) {
+    const row = isAcross ? slot.row : slot.row + index;
+    const col = isAcross ? slot.col + index : slot.col;
     grid[row][col] = previous[index];
-  });
+  }
 }
 
 function getPreferredPatternOrder(dateKey: string, seedSalt: string) {
@@ -301,6 +327,8 @@ function selectSlots(
   slots: Slot[],
   grid: string[][],
   usedWords: Set<string>,
+  forbiddenWords: Set<string>,
+  forbiddenClues: Set<string>,
   seed: string
 ) {
   let bestSlot: Slot | null = null;
@@ -311,6 +339,8 @@ function selectSlots(
       (entry) =>
         entry.allowInDaily &&
         !usedWords.has(entry.word) &&
+        !forbiddenWords.has(entry.word) &&
+        !entry.clues.every((clue) => forbiddenClues.has(clue)) &&
         fitsWord(grid, slot, entry.word)
     );
 
@@ -321,10 +351,7 @@ function selectSlots(
     if (!bestSlot || candidates.length < bestCandidates.length) {
       bestSlot = slot;
       bestCandidates = sortCandidates(
-        shuffleWithSeed(
-          candidates,
-          `${seed}:${slot.row}:${slot.col}:${slot.direction}`
-        ),
+        candidates,
         `${seed}:${slot.row}:${slot.col}:${slot.direction}`
       );
     }
@@ -336,7 +363,24 @@ function selectSlots(
   };
 }
 
-function fillGrid(grid: string[][], slots: Slot[], seed: string) {
+// A dense 5x5 grid with few blocks creates a tightly-crossed constraint
+// problem: naive backtracking can take exponential time to prove a branch
+// is a dead end, especially once popular words are excluded by the recency
+// filters. Rather than trying to make the search provably fast for every
+// grid/dictionary combination, every fill attempt draws from a shared step
+// budget for the whole date -- once it runs out, every remaining
+// attempt/pattern combination bails immediately instead of hanging, and
+// generateSingleDate falls back to its best candidate so far.
+type SearchBudget = { remaining: number };
+
+function fillGrid(
+  grid: string[][],
+  slots: Slot[],
+  forbiddenWords: Set<string>,
+  forbiddenClues: Set<string>,
+  seed: string,
+  budget: SearchBudget
+) {
   const assignment = new Map<string, DictionaryEntry>();
   const usedWords = new Set<string>();
 
@@ -345,7 +389,19 @@ function fillGrid(grid: string[][], slots: Slot[], seed: string) {
       return true;
     }
 
-    const { slot, candidates } = selectSlots(remaining, grid, usedWords, seed);
+    budget.remaining -= 1;
+    if (budget.remaining <= 0) {
+      return false;
+    }
+
+    const { slot, candidates } = selectSlots(
+      remaining,
+      grid,
+      usedWords,
+      forbiddenWords,
+      forbiddenClues,
+      seed
+    );
 
     if (!slot || candidates.length === 0) {
       return false;
@@ -367,23 +423,41 @@ function fillGrid(grid: string[][], slots: Slot[], seed: string) {
       restoreWord(grid, slot, previous);
       usedWords.delete(candidate.word);
       assignment.delete(getSlotKey(slot));
+
+      if (budget.remaining <= 0) {
+        break;
+      }
     }
 
     return false;
   }
 
-  if (!backtrack(slots)) {
+  if (budget.remaining <= 0 || !backtrack(slots)) {
     return null;
   }
 
   return assignment;
 }
 
-function buildPuzzle(dateKey: string, pattern: PatternTemplate, seed: string) {
+function buildPuzzle(
+  dateKey: string,
+  pattern: PatternTemplate,
+  seed: string,
+  forbiddenWords: Set<string>,
+  forbiddenClues: Set<string>,
+  budget: SearchBudget
+) {
   const grid = cloneGrid(pattern.grid);
   const solution = cloneGrid(pattern.grid);
   const slots = PATTERN_SLOTS.get(pattern.id) ?? findSlots(pattern.grid);
-  const assignment = fillGrid(solution, slots, seed);
+  const assignment = fillGrid(
+    solution,
+    slots,
+    forbiddenWords,
+    forbiddenClues,
+    seed,
+    budget
+  );
 
   if (!assignment) {
     return null;
@@ -484,11 +558,7 @@ export function generateSingleDate(
   localCache: Map<string, GeneratedMeta>,
   options: GenerateOptions = {}
 ) {
-  const {
-    attemptBudget = MAX_ATTEMPTS,
-    seedSalt = "",
-    requireUniqueClues = false,
-  } = options;
+  const { attemptBudget = MAX_ATTEMPTS, seedSalt = "" } = options;
   const recentSignatures = new Set<string>();
   const recentWordSignatures = new Set<string>();
   const recentPatterns = new Set<string>();
@@ -524,8 +594,9 @@ export function generateSingleDate(
   });
 
   let fallback: GeneratedMeta | null = null;
+  const budget: SearchBudget = { remaining: TOTAL_SEARCH_BUDGET_PER_DATE };
 
-  for (let attempt = 0; attempt < attemptBudget; attempt += 1) {
+  attempts: for (let attempt = 0; attempt < attemptBudget; attempt += 1) {
     const attemptSeed = `${dateKey}:${seedSalt}:${attempt}`;
     const orderedPatterns =
       attempt === 0
@@ -533,10 +604,17 @@ export function generateSingleDate(
         : shuffleWithSeed(PATTERN_TEMPLATES, attemptSeed);
 
     for (const pattern of orderedPatterns) {
+      if (budget.remaining <= 0) {
+        break attempts;
+      }
+
       const candidate = buildPuzzle(
         dateKey,
         pattern,
-        `${attemptSeed}:${pattern.id}`
+        `${attemptSeed}:${pattern.id}`,
+        recentAnswers,
+        recentClues,
+        budget
       );
 
       if (!candidate) {
@@ -559,14 +637,6 @@ export function generateSingleDate(
         continue;
       }
 
-      if (candidate.clues.some((clue) => recentClues.has(clue))) {
-        continue;
-      }
-
-      if (candidate.answers.some((answer) => recentAnswers.has(answer))) {
-        continue;
-      }
-
       if (
         candidate.qualityScore < MIN_QUALITY_SCORE ||
         candidate.shortFillCount > MAX_SHORT_FILL ||
@@ -580,11 +650,39 @@ export function generateSingleDate(
   }
 
   if (!fallback) {
-    throw new Error(`Unable to generate a puzzle for ${dateKey}`);
+    // The dictionary couldn't satisfy the recency constraints at all for
+    // this date (e.g. a very long unbroken schedule). Fall back to an
+    // unconstrained fill, with a much larger budget, so a puzzle is always
+    // produced -- repeating a word/pattern is better than failing outright.
+    // This path should be rare, so it can afford to spend more time than the
+    // constrained search above.
+    const unconstrainedBudget: SearchBudget = {
+      remaining: TOTAL_SEARCH_BUDGET_PER_DATE * 10,
+    };
+    const unconstrainedPatternOrder = shuffleWithSeed(
+      PATTERN_TEMPLATES,
+      `${dateKey}:${seedSalt}:unconstrained-order`
+    );
+
+    for (const pattern of unconstrainedPatternOrder) {
+      const candidate = buildPuzzle(
+        dateKey,
+        pattern,
+        `${dateKey}:${seedSalt}:unconstrained:${pattern.id}`,
+        new Set(),
+        new Set(),
+        unconstrainedBudget
+      );
+
+      if (candidate) {
+        fallback = candidate;
+        break;
+      }
+    }
   }
 
-  if (requireUniqueClues) {
-    return fallback;
+  if (!fallback) {
+    throw new Error(`Unable to generate a puzzle for ${dateKey}`);
   }
 
   return fallback;
@@ -603,13 +701,12 @@ export function buildPrecomputedSchedule(startDate: string, endDate: string) {
   for (let index = 0; index < dates.length; index += 1) {
     const currentDate = dates[index];
     const previousDates = dates
-      .slice(Math.max(0, index - RECENT_SIGNATURE_LOOKBACK), index)
+      .slice(Math.max(0, index - MAX_LOOKBACK), index)
       .reverse();
 
     const generated = generateSingleDate(currentDate, previousDates, schedule, {
       attemptBudget: STRICT_WINDOW_ATTEMPTS,
       seedSalt: `schedule:${startDate}:${endDate}`,
-      requireUniqueClues: true,
     });
 
     schedule.set(currentDate, generated);
@@ -644,7 +741,6 @@ export function generateRecentWindow(dateKeys: string[]) {
     const generated = generateSingleDate(currentDate, previousDates, localCache, {
       attemptBudget: STRICT_WINDOW_ATTEMPTS,
       seedSalt: `recent-window:${dateKeys.join("|")}`,
-      requireUniqueClues: true,
     });
 
     localCache.set(currentDate, generated);
