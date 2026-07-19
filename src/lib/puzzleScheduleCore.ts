@@ -48,22 +48,30 @@ const MAX_SHORT_FILL = 4;
 const MAX_GLUE_WORDS = 2;
 const TOTAL_SEARCH_BUDGET_PER_DATE = 20000;
 
-// Every template below is 180°-rotationally symmetric and, unlike the
-// original set, has no slot shorter than 3 letters. The old grids leaned
-// on 2-letter fill (up to 8 slots per puzzle) drawn from a pool of only
-// ~28 short glue words (AT, OF, TO, ...), which both made puzzles feel
+// Every template below is 180°-rotationally symmetric and has no slot
+// shorter than 3 letters -- unlike the original set, which leaned on
+// 2-letter fill (up to 8 slots per puzzle) drawn from a pool of only ~28
+// short glue words (AT, OF, TO, ...). That both made puzzles feel
 // repetitive and made the recent-word uniqueness constraint in
-// generateSingleDate nearly unsatisfiable after just a few days -- causing
-// the backtracking solver to exhaustively search before giving up.
+// generateSingleDate nearly unsatisfiable after just a few days.
+//
+// Slot lengths alone don't guarantee a grid is actually fillable: a valid
+// symmetric layout can still have crossing constraints with zero
+// satisfying assignment for a given (necessarily finite) dictionary. Each
+// grid below was picked from a larger set of candidates by brute-force
+// verifying it actually fills against DICTIONARY across many seeds
+// (see scripts/build-puzzle-schedule.cjs history / PR description for the
+// verification approach) -- don't add a new template without doing the
+// same check.
 const PATTERN_TEMPLATES: PatternTemplate[] = [
   {
     id: "classic",
     title: "Letterbeat",
     grid: [
       ["#", "", "", "", ""],
-      ["", "#", "", "", ""],
-      ["", "", "", "", ""],
       ["", "", "", "#", ""],
+      ["", "", "", "", ""],
+      ["", "#", "", "", ""],
       ["", "", "", "", "#"],
     ],
   },
@@ -72,9 +80,9 @@ const PATTERN_TEMPLATES: PatternTemplate[] = [
     title: "Ribbon Grid",
     grid: [
       ["", "#", "", "", ""],
+      ["", "#", "", "", ""],
       ["", "", "", "", ""],
-      ["", "", "", "", ""],
-      ["", "", "", "", ""],
+      ["", "", "", "#", ""],
       ["", "", "", "#", ""],
     ],
   },
@@ -83,9 +91,9 @@ const PATTERN_TEMPLATES: PatternTemplate[] = [
     title: "Spark Grid",
     grid: [
       ["", "", "", "#", ""],
+      ["", "", "", "#", ""],
       ["", "", "", "", ""],
-      ["", "", "", "", ""],
-      ["", "", "", "", ""],
+      ["", "#", "", "", ""],
       ["", "#", "", "", ""],
     ],
   },
@@ -93,11 +101,11 @@ const PATTERN_TEMPLATES: PatternTemplate[] = [
     id: "stagger",
     title: "Pulse Grid",
     grid: [
-      ["", "#", "", "", ""],
       ["", "", "", "", "#"],
+      ["", "#", "", "", ""],
       ["", "", "", "", ""],
-      ["#", "", "", "", ""],
       ["", "", "", "#", ""],
+      ["#", "", "", "", ""],
     ],
   },
   {
@@ -105,9 +113,9 @@ const PATTERN_TEMPLATES: PatternTemplate[] = [
     title: "Corner Turn",
     grid: [
       ["", "", "", "", ""],
-      ["#", "", "", "", ""],
+      ["#", "#", "", "", ""],
       ["", "", "", "", ""],
-      ["", "", "", "", "#"],
+      ["", "", "", "#", "#"],
       ["", "", "", "", ""],
     ],
   },
@@ -116,9 +124,9 @@ const PATTERN_TEMPLATES: PatternTemplate[] = [
     title: "Zigzag Grid",
     grid: [
       ["", "", "", "", ""],
-      ["", "#", "", "", ""],
+      ["", "", "", "#", "#"],
       ["", "", "", "", ""],
-      ["", "", "", "#", ""],
+      ["#", "#", "", "", ""],
       ["", "", "", "", ""],
     ],
   },
@@ -126,22 +134,22 @@ const PATTERN_TEMPLATES: PatternTemplate[] = [
     id: "lanes",
     title: "Lanes Grid",
     grid: [
+      ["#", "", "", "", "#"],
       ["", "", "", "", ""],
-      ["", "", "", "#", ""],
+      ["#", "", "", "", "#"],
       ["", "", "", "", ""],
-      ["", "#", "", "", ""],
-      ["", "", "", "", ""],
+      ["#", "", "", "", "#"],
     ],
   },
   {
     id: "drift",
     title: "Drift Grid",
     grid: [
+      ["#", "#", "", "", ""],
+      ["", "#", "", "", ""],
       ["", "", "", "", ""],
-      ["", "", "", "", "#"],
-      ["", "", "", "", ""],
-      ["#", "", "", "", ""],
-      ["", "", "", "", ""],
+      ["", "", "", "#", ""],
+      ["", "", "", "#", "#"],
     ],
   },
   {
@@ -149,9 +157,9 @@ const PATTERN_TEMPLATES: PatternTemplate[] = [
     title: "Swing Grid",
     grid: [
       ["#", "", "", "", "#"],
+      ["", "", "", "#", ""],
       ["", "", "", "", ""],
-      ["", "", "", "", ""],
-      ["", "", "", "", ""],
+      ["", "#", "", "", ""],
       ["#", "", "", "", "#"],
     ],
   },
@@ -159,11 +167,11 @@ const PATTERN_TEMPLATES: PatternTemplate[] = [
     id: "scatter",
     title: "Scatter Grid",
     grid: [
-      ["", "#", "", "", ""],
-      ["", "#", "", "", ""],
+      ["#", "", "", "", ""],
+      ["#", "", "", "", "#"],
       ["", "", "", "", ""],
-      ["", "", "", "#", ""],
-      ["", "", "", "#", ""],
+      ["#", "", "", "", "#"],
+      ["", "", "", "", "#"],
     ],
   },
 ];
