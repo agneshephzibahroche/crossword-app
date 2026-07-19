@@ -607,7 +607,18 @@ export function generateSingleDate(
     }
   });
 
-  let fallback: GeneratedMeta | null = null;
+  // Not every date can find a candidate that satisfies every constraint (grid
+  // pattern unused recently, quality above the bar, etc.), so we keep the
+  // best candidate seen at each tier and settle for the best available
+  // rather than the first successful fill. Tier 1 (isDuplicate) matters most:
+  // returning an exact repeat of a recent puzzle -- same grid, same
+  // words -- is a much worse user-facing bug than reusing one word or one
+  // grid shape, so it's the last thing we're willing to accept.
+  let anyCandidate: GeneratedMeta | null = null;
+  let nonDuplicateCandidate: GeneratedMeta | null = null;
+  const isDuplicate = (candidate: GeneratedMeta) =>
+    recentSignatures.has(candidate.signature) ||
+    recentWordSignatures.has(candidate.wordSignature);
   const budget: SearchBudget = { remaining: TOTAL_SEARCH_BUDGET_PER_DATE };
 
   attempts: for (let attempt = 0; attempt < attemptBudget; attempt += 1) {
@@ -635,19 +646,15 @@ export function generateSingleDate(
         continue;
       }
 
-      if (!fallback) {
-        fallback = candidate;
+      if (!anyCandidate) {
+        anyCandidate = candidate;
       }
 
-      if (recentPatterns.has(candidate.patternId)) {
-        continue;
+      if (!nonDuplicateCandidate && !isDuplicate(candidate)) {
+        nonDuplicateCandidate = candidate;
       }
 
-      if (recentSignatures.has(candidate.signature)) {
-        continue;
-      }
-
-      if (recentWordSignatures.has(candidate.wordSignature)) {
+      if (recentPatterns.has(candidate.patternId) || isDuplicate(candidate)) {
         continue;
       }
 
@@ -663,13 +670,12 @@ export function generateSingleDate(
     }
   }
 
-  if (!fallback) {
+  if (!nonDuplicateCandidate) {
     // The dictionary couldn't satisfy the recency constraints at all for
     // this date (e.g. a very long unbroken schedule). Fall back to an
     // unconstrained fill, with a much larger budget, so a puzzle is always
-    // produced -- repeating a word/pattern is better than failing outright.
-    // This path should be rare, so it can afford to spend more time than the
-    // constrained search above.
+    // produced. Still prefer a fill that at least isn't an exact repeat of a
+    // recent grid/word-set over one that is -- see isDuplicate above.
     const unconstrainedBudget: SearchBudget = {
       remaining: TOTAL_SEARCH_BUDGET_PER_DATE * 10,
     };
@@ -679,6 +685,10 @@ export function generateSingleDate(
     );
 
     for (const pattern of unconstrainedPatternOrder) {
+      if (unconstrainedBudget.remaining <= 0) {
+        break;
+      }
+
       const candidate = buildPuzzle(
         dateKey,
         pattern,
@@ -688,18 +698,28 @@ export function generateSingleDate(
         unconstrainedBudget
       );
 
-      if (candidate) {
-        fallback = candidate;
+      if (!candidate) {
+        continue;
+      }
+
+      if (!anyCandidate) {
+        anyCandidate = candidate;
+      }
+
+      if (!isDuplicate(candidate)) {
+        nonDuplicateCandidate = candidate;
         break;
       }
     }
   }
 
-  if (!fallback) {
+  const result = nonDuplicateCandidate ?? anyCandidate;
+
+  if (!result) {
     throw new Error(`Unable to generate a puzzle for ${dateKey}`);
   }
 
-  return fallback;
+  return result;
 }
 
 export function buildPrecomputedSchedule(startDate: string, endDate: string) {
