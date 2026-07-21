@@ -29,14 +29,18 @@ export const ANCHOR_DATE = "2020-01-01";
 export const RECENT_SIGNATURE_LOOKBACK = 24;
 export const RECENT_WORDSET_LOOKBACK = 20;
 export const RECENT_PATTERN_LOOKBACK = 6;
-// These two are bounded by the smallest per-length word bucket (3-letter
-// fill, ~265 words) versus how many of that length a day's grids need on
-// average (~5/day across the 10 templates). 35/28 left ~0 slack -- once the
-// window filled up, almost every day fell through to the fully
-// unconstrained fallback below, defeating the point of "don't repeat a
-// recent word." 24 keeps demand comfortably under supply.
-export const RECENT_CLUE_LOOKBACK = 24;
-export const RECENT_ANSWER_LOOKBACK = 24;
+// These two are bounded by how quickly the *effective* usable word pool
+// runs out, which is much smaller than the raw dictionary size: the
+// priority formula in getEntryPriority is dominated by quality/familiarity
+// (mostly length-based, plus a handful of explicit overrides), so a small
+// set of "premium" words gets picked far more often than an even spread
+// across the dictionary would suggest. Empirically (see PR discussion): 24
+// left the search unable to find even a single word-respecting fill on
+// most days, silently forcing the fully-unconstrained fallback below and
+// producing exact same-word-next-day repeats. 10 was verified to hold with
+// zero repeats under the window across a 300-day simulation.
+export const RECENT_CLUE_LOOKBACK = 10;
+export const RECENT_ANSWER_LOOKBACK = 10;
 const MAX_LOOKBACK = Math.max(
   RECENT_SIGNATURE_LOOKBACK,
   RECENT_WORDSET_LOOKBACK,
@@ -52,7 +56,13 @@ export const SCHEDULE_END = "2028-12-31";
 const MIN_QUALITY_SCORE = 66;
 const MAX_SHORT_FILL = 4;
 const MAX_GLUE_WORDS = 2;
-const TOTAL_SEARCH_BUDGET_PER_DATE = 20000;
+// Verified empirically against a 100-day simulation at the lookback values
+// above: at 20,000 the search frequently exhausted its budget before
+// finding even one word-respecting fill (forcing the fully-unconstrained
+// fallback and same-word-next-day repeats); 150,000 eliminated that
+// entirely while keeping the average per-day cost close to unchanged (most
+// days still succeed well before the ceiling).
+const TOTAL_SEARCH_BUDGET_PER_DATE = 150000;
 
 // Every template below is 180°-rotationally symmetric and has no slot
 // shorter than 3 letters -- unlike the original set, which leaned on
