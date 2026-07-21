@@ -610,10 +610,20 @@ export function generateSingleDate(
   // Not every date can find a candidate that satisfies every constraint (grid
   // pattern unused recently, quality above the bar, etc.), so we keep the
   // best candidate seen at each tier and settle for the best available
-  // rather than the first successful fill. Tier 1 (isDuplicate) matters most:
-  // returning an exact repeat of a recent puzzle -- same grid, same
-  // words -- is a much worse user-facing bug than reusing one word or one
-  // grid shape, so it's the last thing we're willing to accept.
+  // rather than the first successful fill, in priority order:
+  //   1. a "perfect" candidate (returned immediately below)
+  //   2. nonDuplicateCandidate: respects recentAnswers/recentClues (no
+  //      individual word/clue reused too soon) AND isn't an exact repeat
+  //      of a recent whole puzzle
+  //   3. anyCandidate: respects recentAnswers/recentClues, but may repeat
+  //      a whole recent puzzle
+  //   4. the unconstrained search below, which ignores recentAnswers/
+  //      recentClues entirely -- only reached if even anyCandidate is
+  //      unavailable
+  // Reusing one individual word/clue too soon (tier 3) is a smaller,
+  // easy-to-miss regression -- one repeated answer among ten -- while an
+  // exact whole-puzzle repeat (tier 4 without this ordering) is obvious to
+  // any player, so tier 3 must be preferred over reaching for tier 4.
   let anyCandidate: GeneratedMeta | null = null;
   let nonDuplicateCandidate: GeneratedMeta | null = null;
   const isDuplicate = (candidate: GeneratedMeta) =>
@@ -670,12 +680,18 @@ export function generateSingleDate(
     }
   }
 
-  if (!nonDuplicateCandidate) {
-    // The dictionary couldn't satisfy the recency constraints at all for
-    // this date (e.g. a very long unbroken schedule). Fall back to an
-    // unconstrained fill, with a much larger budget, so a puzzle is always
-    // produced. Still prefer a fill that at least isn't an exact repeat of a
-    // recent grid/word-set over one that is -- see isDuplicate above.
+  if (!anyCandidate) {
+    // The word-level-constrained search (respecting recentAnswers/
+    // recentClues) couldn't produce a single fill at all for this date.
+    // Fall back to an unconstrained fill, with a much larger budget, so a
+    // puzzle is always produced. This must only trigger when anyCandidate
+    // is missing, not merely nonDuplicateCandidate -- if a word-respecting
+    // fill already exists, prefer it (even if it happens to repeat a whole
+    // recent puzzle) over one that freely reuses recent individual words.
+    // An earlier version of this check used `!nonDuplicateCandidate`, which
+    // meant reaching for a word-repeating fill was preferred over reusing an
+    // already-available word-safe one -- e.g. reusing the exact word "ARE"
+    // with the exact same clue on consecutive days.
     const unconstrainedBudget: SearchBudget = {
       remaining: TOTAL_SEARCH_BUDGET_PER_DATE * 10,
     };
