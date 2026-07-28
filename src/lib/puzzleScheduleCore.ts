@@ -79,6 +79,23 @@ const TOTAL_SEARCH_BUDGET_PER_DATE = 150000;
 // (see scripts/build-puzzle-schedule.cjs history / PR description for the
 // verification approach) -- don't add a new template without doing the
 // same check.
+// A soft daily theme: getEntryPriority gives words tagged with the day's
+// theme a scoring bonus, so they're preferred *when they already fit* a
+// slot, without ever excluding non-themed words. This can never make a day
+// harder to fill than an untagged one -- worst case, none of the themed
+// words happen to cross well and the puzzle just looks like any other day.
+const THEMES: { tag: string; label: string }[] = [
+  { tag: "pop-culture", label: "🎬 Pop Culture" },
+  { tag: "location", label: "🌍 World Traveler" },
+  { tag: "food", label: "🍔 Food & Drink" },
+  { tag: "nature", label: "🌿 Nature & Wildlife" },
+  { tag: "sports", label: "⚽ Sports & Games" },
+];
+
+function getTodaysTheme(dateKey: string) {
+  return THEMES[hashString(`${dateKey}:theme`) % THEMES.length];
+}
+
 const PATTERN_TEMPLATES: PatternTemplate[] = [
   {
     id: "classic",
@@ -237,13 +254,33 @@ function shuffleWithSeed<T>(items: T[], seed: string) {
   return result;
 }
 
-function getEntryPriority(entry: DictionaryEntry, seed: string) {
+function getEntryPriority(
+  entry: DictionaryEntry,
+  seed: string,
+  themeTag: string | null
+) {
   const baseScore = entry.quality * 100;
   const familiarityBonus = entry.familiarity * 18;
   const lengthBonus = entry.word.length * 6;
   const shortFillPenalty = entry.tags.includes("short-fill") ? -36 : 0;
   const gluePenalty = entry.tags.includes("glue") ? -42 : 0;
   const miniFillPenalty = entry.tags.includes("mini-fill") ? -10 : 0;
+  // A soft nudge, not a filter: themed words get a real edge when they're
+  // already in the running for a slot, but never exclude non-themed words,
+  // so a themed day can never be *harder* to fill than a normal one -- it
+  // can only end up with fewer than ideal themed answers if the crossing
+  // constraints don't cooperate. (A hard theme requirement was tried and
+  // reverted: forcibly restricting slots to a theme's much smaller word
+  // pool caused the same kind of solver breakdown as the frequency cap did.)
+  // Unlike that cap, this can be tuned aggressively without that risk --
+  // it only ever reorders which candidate wins a tie, never removes one,
+  // so backtracking still falls through to non-themed words when a themed
+  // one doesn't cross well. 80 (comparable to one familiarity point) barely
+  // moved the needle empirically: ~0.7 themed answers/day, many days with
+  // zero. 600 (bigger than the entire quality range) means a themed word
+  // wins against literally any non-themed word of the same length whenever
+  // it's a valid candidate at all.
+  const themeBonus = themeTag && entry.tags.includes(themeTag) ? 600 : 0;
   const tieBreaker = hashString(`${seed}:${entry.word}`) % 17;
 
   return (
@@ -253,17 +290,26 @@ function getEntryPriority(entry: DictionaryEntry, seed: string) {
     shortFillPenalty +
     gluePenalty +
     miniFillPenalty +
+    themeBonus +
     tieBreaker
   );
 }
 
-function sortCandidates(candidates: DictionaryEntry[], seed: string) {
-  // Priority only depends on the (entry, seed) pair, so compute it once per
-  // candidate instead of recomputing it (with its hashString call) on every
-  // comparison a sort makes -- for a length-5 bucket of 200+ words that's
-  // the difference between O(n) and O(n log n) hashString calls.
+function sortCandidates(
+  candidates: DictionaryEntry[],
+  seed: string,
+  themeTag: string | null
+) {
+  // Priority only depends on the (entry, seed, themeTag) triple, so compute
+  // it once per candidate instead of recomputing it (with its hashString
+  // call) on every comparison a sort makes -- for a length-5 bucket of 200+
+  // words that's the difference between O(n) and O(n log n) hashString
+  // calls.
   return candidates
-    .map((entry) => ({ entry, priority: getEntryPriority(entry, seed) }))
+    .map((entry) => ({
+      entry,
+      priority: getEntryPriority(entry, seed, themeTag),
+    }))
     .sort((left, right) => right.priority - left.priority)
     .map(({ entry }) => entry);
 }
@@ -353,7 +399,8 @@ function selectSlots(
   usedWords: Set<string>,
   forbiddenWords: Set<string>,
   forbiddenClues: Set<string>,
-  seed: string
+  seed: string,
+  themeTag: string | null
 ) {
   let bestSlot: Slot | null = null;
   let bestCandidates: DictionaryEntry[] = [];
@@ -376,7 +423,8 @@ function selectSlots(
       bestSlot = slot;
       bestCandidates = sortCandidates(
         candidates,
-        `${seed}:${slot.row}:${slot.col}:${slot.direction}`
+        `${seed}:${slot.row}:${slot.col}:${slot.direction}`,
+        themeTag
       );
     }
   }
@@ -403,7 +451,8 @@ function fillGrid(
   forbiddenWords: Set<string>,
   forbiddenClues: Set<string>,
   seed: string,
-  budget: SearchBudget
+  budget: SearchBudget,
+  themeTag: string | null
 ) {
   const assignment = new Map<string, DictionaryEntry>();
   const usedWords = new Set<string>();
@@ -424,7 +473,8 @@ function fillGrid(
       usedWords,
       forbiddenWords,
       forbiddenClues,
-      seed
+      seed,
+      themeTag
     );
 
     if (!slot || candidates.length === 0) {
@@ -469,7 +519,8 @@ function buildPuzzle(
   seed: string,
   forbiddenWords: Set<string>,
   forbiddenClues: Set<string>,
-  budget: SearchBudget
+  budget: SearchBudget,
+  theme: { tag: string; label: string }
 ) {
   const grid = cloneGrid(pattern.grid);
   const solution = cloneGrid(pattern.grid);
@@ -480,7 +531,8 @@ function buildPuzzle(
     forbiddenWords,
     forbiddenClues,
     seed,
-    budget
+    budget,
+    theme.tag
   );
 
   if (!assignment) {
@@ -572,6 +624,7 @@ function buildPuzzle(
         across,
         down,
       },
+      theme: { label: theme.label },
     },
   } satisfies GeneratedMeta;
 }
@@ -640,6 +693,7 @@ export function generateSingleDate(
     recentSignatures.has(candidate.signature) ||
     recentWordSignatures.has(candidate.wordSignature);
   const budget: SearchBudget = { remaining: TOTAL_SEARCH_BUDGET_PER_DATE };
+  const theme = getTodaysTheme(dateKey);
 
   attempts: for (let attempt = 0; attempt < attemptBudget; attempt += 1) {
     const attemptSeed = `${dateKey}:${seedSalt}:${attempt}`;
@@ -659,7 +713,8 @@ export function generateSingleDate(
         `${attemptSeed}:${pattern.id}`,
         recentAnswers,
         recentClues,
-        budget
+        budget,
+        theme
       );
 
       if (!candidate) {
@@ -721,7 +776,8 @@ export function generateSingleDate(
         `${dateKey}:${seedSalt}:unconstrained:${pattern.id}`,
         new Set(),
         new Set(),
-        unconstrainedBudget
+        unconstrainedBudget,
+        theme
       );
 
       if (!candidate) {
