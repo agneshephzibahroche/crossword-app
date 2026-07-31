@@ -1283,9 +1283,14 @@ export default function CrosswordGrid({
     context.font = `700 18px ${uiFont}`;
     context.fillText("DAILY MINI CROSSWORD", centerX, 176);
 
+    // Sized and positioned to sit in the gap between the title (bottom
+    // edge ~286, from the 92px "LETTERBEAT" text below) and the date
+    // (top edge ~388, from the 48px date text below) -- it previously used
+    // a 190px font centered at y=324, which visibly overlapped the bottom
+    // of the title letters and nearly touched the date.
     context.fillStyle = "rgba(127,50,86,0.08)";
-    context.font = `700 190px ${editorialFont}`;
-    context.fillText("LB", centerX, 324);
+    context.font = `700 90px ${editorialFont}`;
+    context.fillText("LB", centerX, 337);
 
     [
       { x: 215, y: 285, size: 8, color: "rgba(255,132,118,0.8)" },
