@@ -1212,6 +1212,9 @@ export default function CrosswordGrid({
       return;
     }
 
+    // One smooth background gradient -- the previous version layered two
+    // large blurry circles and two squiggly bezier lines on top of this,
+    // which read as visual noise rather than intentional texture.
     const gradient = context.createLinearGradient(0, 0, width, height);
     gradient.addColorStop(0, "#fff3e2");
     gradient.addColorStop(0.42, "#ffd8cf");
@@ -1220,51 +1223,35 @@ export default function CrosswordGrid({
     context.fillStyle = gradient;
     context.fillRect(0, 0, width, height);
 
-    context.fillStyle = "rgba(255,255,255,0.18)";
-    context.beginPath();
-    context.arc(170, 210, 180, 0, Math.PI * 2);
-    context.fill();
+    // A single soft glow behind the card, rather than two mismatched blobs
+    // in opposite corners.
+    const backgroundGlow = context.createRadialGradient(
+      centerX,
+      height * 0.38,
+      40,
+      centerX,
+      height * 0.38,
+      width * 0.75
+    );
+    backgroundGlow.addColorStop(0, "rgba(255,255,255,0.28)");
+    backgroundGlow.addColorStop(1, "rgba(255,255,255,0)");
+    context.fillStyle = backgroundGlow;
+    context.fillRect(0, 0, width, height);
 
-    context.fillStyle = "rgba(127,50,86,0.15)";
-    context.beginPath();
-    context.arc(915, 1520, 260, 0, Math.PI * 2);
-    context.fill();
-
-    context.strokeStyle = "rgba(255,255,255,0.22)";
-    context.lineWidth = 3;
-    context.beginPath();
-    context.moveTo(140, 320);
-    context.bezierCurveTo(360, 260, 700, 420, 920, 360);
-    context.stroke();
-
-    context.beginPath();
-    context.moveTo(180, 1540);
-    context.bezierCurveTo(420, 1490, 690, 1580, 920, 1510);
-    context.stroke();
-
-    context.fillStyle = "rgba(255,255,255,0.78)";
-    context.beginPath();
-    context.roundRect(72, 96, width - 144, height - 192, 52);
-    context.fill();
-
-    context.fillStyle = "rgba(32,21,71,0.08)";
-    context.beginPath();
-    context.roundRect(92, 122, width - 184, height - 244, 46);
-    context.fill();
-
-    context.fillStyle = "rgba(255,255,255,0.9)";
-    context.beginPath();
-    context.roundRect(72, 96, width - 144, height - 192, 52);
-    context.fill();
-
+    // The card itself: one shadow layer plus one filled layer, rather than
+    // four overlapping rounded rects stacked on top of each other.
+    context.save();
+    context.shadowColor = "rgba(32,21,71,0.22)";
+    context.shadowBlur = 60;
+    context.shadowOffsetY = 24;
     const cardGradient = context.createLinearGradient(72, 96, width - 72, height - 96);
-    cardGradient.addColorStop(0, "rgba(255,255,255,0.94)");
-    cardGradient.addColorStop(0.55, "rgba(255,248,243,0.94)");
-    cardGradient.addColorStop(1, "rgba(255,238,246,0.9)");
+    cardGradient.addColorStop(0, "rgba(255,255,255,0.96)");
+    cardGradient.addColorStop(1, "rgba(255,241,245,0.96)");
     context.fillStyle = cardGradient;
     context.beginPath();
     context.roundRect(72, 96, width - 144, height - 192, 52);
     context.fill();
+    context.restore();
 
     context.strokeStyle = "rgba(255,255,255,0.5)";
     context.lineWidth = 2;
@@ -1291,34 +1278,6 @@ export default function CrosswordGrid({
     context.fillStyle = "rgba(127,50,86,0.08)";
     context.font = `700 90px ${editorialFont}`;
     context.fillText("LB", centerX, 337);
-
-    [
-      { x: 215, y: 285, size: 8, color: "rgba(255,132,118,0.8)" },
-      { x: 865, y: 305, size: 7, color: "rgba(127,50,86,0.45)" },
-      { x: 242, y: 1180, size: 7, color: "rgba(255,132,118,0.62)" },
-      { x: 838, y: 1160, size: 8, color: "rgba(127,50,86,0.38)" },
-    ].forEach((spark) => {
-      context.fillStyle = spark.color;
-      context.beginPath();
-      context.arc(spark.x, spark.y, spark.size, 0, Math.PI * 2);
-      context.fill();
-    });
-
-    context.strokeStyle = "rgba(127,50,86,0.16)";
-    context.lineWidth = 2;
-    [
-      { x: 190, y: 350 },
-      { x: 905, y: 265 },
-      { x: 175, y: 1120 },
-      { x: 888, y: 1240 },
-    ].forEach((spark) => {
-      context.beginPath();
-      context.moveTo(spark.x - 12, spark.y);
-      context.lineTo(spark.x + 12, spark.y);
-      context.moveTo(spark.x, spark.y - 12);
-      context.lineTo(spark.x, spark.y + 12);
-      context.stroke();
-    });
 
     context.fillStyle = "#7f3256";
     context.font = `800 92px ${uiFont}`;
@@ -1360,18 +1319,19 @@ export default function CrosswordGrid({
       chipY + 31
     );
 
-    context.fillStyle = "rgba(255,255,255,0.86)";
+    // The grid's shell: one soft-shadowed outer card, one snug frame right
+    // around the cells. The previous version stacked seven shapes here
+    // (two shells, a gradient fill, a drop shadow, a glow circle, and a
+    // frame with its own fill+stroke) for an effect that's cleaner with two.
+    context.save();
+    context.shadowColor = "rgba(32,21,71,0.14)";
+    context.shadowBlur = 32;
+    context.shadowOffsetY = 12;
+    context.fillStyle = "rgba(255,255,255,0.9)";
     context.beginPath();
     context.roundRect(184, 598, width - 368, 540, 40);
     context.fill();
-
-    const boardShellGradient = context.createLinearGradient(206, 626, width - 206, 1110);
-    boardShellGradient.addColorStop(0, "rgba(255, 145, 127, 0.14)");
-    boardShellGradient.addColorStop(1, "rgba(255, 225, 236, 0.2)");
-    context.fillStyle = boardShellGradient;
-    context.beginPath();
-    context.roundRect(206, 626, width - 412, 480, 34);
-    context.fill();
+    context.restore();
 
     context.strokeStyle = "rgba(127,50,86,0.14)";
     context.lineWidth = 2;
@@ -1383,16 +1343,6 @@ export default function CrosswordGrid({
     const cellSize = boardSize / puzzle.grid.length;
     const boardLeft = centerX - boardSize / 2;
     const boardTop = 640;
-
-    context.fillStyle = "rgba(32,21,71,0.08)";
-    context.beginPath();
-    context.roundRect(boardLeft - 12, boardTop - 8, boardSize + 48, boardSize + 48, 34);
-    context.fill();
-
-    context.fillStyle = "rgba(255, 132, 118, 0.12)";
-    context.beginPath();
-    context.arc(centerX, boardTop + boardSize / 2, 268, 0, Math.PI * 2);
-    context.fill();
 
     context.fillStyle = "#fff8f1";
     context.beginPath();
