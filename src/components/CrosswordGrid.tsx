@@ -1414,13 +1414,52 @@ export default function CrosswordGrid({
     context.font = `500 24px ${uiFont}`;
     context.fillText("Bright clues. Quick grids. Share the finish.", centerX, 1656);
 
-    const dataUrl = canvas.toDataURL("image/png");
+    const fileName = `letterbeat-story-${puzzle.date}.png`;
+    const blob = await new Promise<Blob | null>((resolve) =>
+      canvas.toBlob(resolve, "image/png")
+    );
+
+    if (!blob) {
+      setShareState("failed");
+      return;
+    }
+
+    // iOS Safari doesn't support the `download` attribute for triggering a
+    // save from a data/object URL -- tapping the link just does nothing
+    // visible, which is why this previously failed silently on iPhone. The
+    // Web Share API's file sharing (widely supported on iOS Safari and
+    // Android Chrome) opens the native share sheet, which includes "Save
+    // Image" -- that's the correct way to get an in-memory canvas image
+    // onto a phone's camera roll.
+    const file = new File([blob], fileName, { type: "image/png" });
+
+    if (
+      typeof navigator !== "undefined" &&
+      typeof navigator.canShare === "function" &&
+      navigator.canShare({ files: [file] })
+    ) {
+      try {
+        await navigator.share({ files: [file] });
+        setShareState("shared");
+        window.setTimeout(() => setShareState("idle"), 1800);
+        return;
+      } catch (error) {
+        if (error instanceof Error && error.name === "AbortError") {
+          setShareState("idle");
+          return;
+        }
+        // Fall through to the download link below for any other failure.
+      }
+    }
+
+    const objectUrl = URL.createObjectURL(blob);
     const link = document.createElement("a");
-    link.href = dataUrl;
-    link.download = `letterbeat-story-${puzzle.date}.png`;
+    link.href = objectUrl;
+    link.download = fileName;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    window.setTimeout(() => URL.revokeObjectURL(objectUrl), 4000);
 
     setShareState("shared");
     window.setTimeout(() => setShareState("idle"), 1800);
