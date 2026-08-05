@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "generate:schedule": "node scripts/build-puzzle-schedule.cjs"
+    "generate:schedule": "node scripts/build-puzzle-schedule.cjs",
+    "generate:categories-schedule": "node scripts/build-categories-schedule.cjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.100.0",

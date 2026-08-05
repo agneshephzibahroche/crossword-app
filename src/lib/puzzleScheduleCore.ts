@@ -15,6 +15,7 @@ export type GeneratedMeta = {
   clues: string[];
   answers: string[];
   qualityScore: number;
+  minEntryQuality: number;
   shortFillCount: number;
   glueCount: number;
   puzzle: Puzzle;
@@ -54,6 +55,17 @@ export const RECENT_ARCHIVE_DAYS = 3;
 export const SCHEDULE_START = "2025-01-01";
 export const SCHEDULE_END = "2028-12-31";
 const MIN_QUALITY_SCORE = 66;
+// The puzzle-wide qualityScore average is dominated by strong words (a
+// typical 5-letter entry alone scores ~100+), so this per-word floor is
+// what actually keeps a single obscure word (quality 1-3: rare
+// abbreviations, very obscure geography) out of the preferred search tier,
+// independent of how good the rest of the puzzle is. Quality-5 "moderately
+// obscure" words (e.g. lesser-known capitals) still pass -- only the bottom
+// tier is excluded here, in keeping with the tiered-fallback design: this
+// makes the *preferred* fill pickier, it doesn't remove these words from
+// the dictionary, so a puzzle is still always produced via the existing
+// fallback tiers if no fully-clean fill is found in time.
+const MIN_ENTRY_QUALITY = 4;
 const MAX_SHORT_FILL = 4;
 const MAX_GLUE_WORDS = 2;
 // Verified empirically against a 100-day simulation at the lookback values
@@ -602,6 +614,15 @@ function buildPuzzle(
       Math.max(assignedEntries.length, 1)) *
       10
   ) / 10;
+  // qualityScore is a puzzle-wide average, so a single obscure word (e.g. a
+  // quality-3 capital city) barely moves it -- the rest of a good puzzle
+  // dilutes it below any threshold that's still loose enough to let normal
+  // puzzles through. minEntryQuality catches that case directly: it's the
+  // weakest single word in the puzzle, independent of how strong its
+  // neighbors are.
+  const minEntryQuality = Math.min(
+    ...assignedEntries.map((entry) => entry.quality)
+  );
 
   return {
     patternId: pattern.id,
@@ -610,6 +631,7 @@ function buildPuzzle(
     clues: clueList,
     answers,
     qualityScore,
+    minEntryQuality,
     shortFillCount,
     glueCount,
     puzzle: {
@@ -735,6 +757,7 @@ export function generateSingleDate(
 
       if (
         candidate.qualityScore < MIN_QUALITY_SCORE ||
+        candidate.minEntryQuality < MIN_ENTRY_QUALITY ||
         candidate.shortFillCount > MAX_SHORT_FILL ||
         candidate.glueCount > MAX_GLUE_WORDS
       ) {

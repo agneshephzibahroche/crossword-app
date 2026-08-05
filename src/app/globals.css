@@ -22,6 +22,8 @@
   --success-soft: #c8f7ef;
   --danger: #f05d5e;
   --danger-soft: #ffd9d2;
+  --info: #5b6fd6;
+  --info-soft: #dbe0ff;
   --glow-1: rgba(255, 192, 92, 0.42);
   --glow-2: rgba(255, 113, 154, 0.28);
   --overlay: rgba(15, 23, 42, 0.38);
@@ -88,6 +90,8 @@
   --success-soft: rgba(51, 209, 182, 0.18);
   --danger: #ff7a7a;
   --danger-soft: rgba(255, 122, 122, 0.18);
+  --info: #8b9bff;
+  --info-soft: rgba(139, 155, 255, 0.2);
   --glow-1: rgba(70, 190, 255, 0.22);
   --glow-2: rgba(255, 93, 177, 0.24);
   --overlay: rgba(3, 7, 18, 0.62);
@@ -147,6 +151,14 @@ body {
 
 * {
   box-sizing: border-box;
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-6px); }
+  40% { transform: translateX(6px); }
+  60% { transform: translateX(-4px); }
+  80% { transform: translateX(4px); }
 }
 
 button,

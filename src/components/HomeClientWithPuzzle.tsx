@@ -417,6 +417,13 @@ export default function HomeClientWithPuzzle({
             </div>
 
             <div className="flex gap-2">
+              <Link
+                href="/categories"
+                className="rounded-full border border-[var(--line-strong)] bg-[var(--surface)] px-4 py-2 text-sm font-semibold text-[var(--ink)] shadow-[0_10px_24px_rgba(18,31,53,0.08)] transition hover:border-[var(--accent)] hover:bg-[var(--surface-hover)]"
+              >
+                Categories
+              </Link>
+
               <button
                 type="button"
                 onClick={toggleTheme}

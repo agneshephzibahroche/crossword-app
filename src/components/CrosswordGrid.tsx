@@ -1212,102 +1212,79 @@ export default function CrosswordGrid({
       return;
     }
 
-    // One smooth background gradient -- the previous version layered two
-    // large blurry circles and two squiggly bezier lines on top of this,
-    // which read as visual noise rather than intentional texture.
-    const gradient = context.createLinearGradient(0, 0, width, height);
-    gradient.addColorStop(0, "#fff3e2");
-    gradient.addColorStop(0.42, "#ffd8cf");
-    gradient.addColorStop(0.78, "#ff9d8d");
-    gradient.addColorStop(1, "#221b4d");
+    // A moody ink backdrop (matching the app's own --ink/--ink-soft tokens)
+    // with one soft accent glow behind the card, so the white card reads as
+    // a clean spotlighted trophy instead of competing with a bright,
+    // multi-hue gradient behind it.
+    const gradient = context.createLinearGradient(0, 0, 0, height);
+    gradient.addColorStop(0, "#2a1a49");
+    gradient.addColorStop(1, "#160f30");
     context.fillStyle = gradient;
     context.fillRect(0, 0, width, height);
 
-    // A single soft glow behind the card, rather than two mismatched blobs
-    // in opposite corners.
     const backgroundGlow = context.createRadialGradient(
       centerX,
-      height * 0.38,
+      height * 0.3,
       40,
       centerX,
-      height * 0.38,
-      width * 0.75
+      height * 0.3,
+      width * 0.8
     );
-    backgroundGlow.addColorStop(0, "rgba(255,255,255,0.28)");
-    backgroundGlow.addColorStop(1, "rgba(255,255,255,0)");
+    backgroundGlow.addColorStop(0, "rgba(232,77,138,0.35)");
+    backgroundGlow.addColorStop(1, "rgba(232,77,138,0)");
     context.fillStyle = backgroundGlow;
     context.fillRect(0, 0, width, height);
 
-    // The card itself: one shadow layer plus one filled layer, rather than
-    // four overlapping rounded rects stacked on top of each other.
     context.save();
-    context.shadowColor = "rgba(32,21,71,0.22)";
-    context.shadowBlur = 60;
-    context.shadowOffsetY = 24;
-    const cardGradient = context.createLinearGradient(72, 96, width - 72, height - 96);
-    cardGradient.addColorStop(0, "rgba(255,255,255,0.96)");
-    cardGradient.addColorStop(1, "rgba(255,241,245,0.96)");
-    context.fillStyle = cardGradient;
+    context.shadowColor = "rgba(10,6,26,0.45)";
+    context.shadowBlur = 70;
+    context.shadowOffsetY = 28;
+    context.fillStyle = "#fffaf5";
     context.beginPath();
     context.roundRect(72, 96, width - 144, height - 192, 52);
     context.fill();
     context.restore();
 
-    context.strokeStyle = "rgba(255,255,255,0.5)";
-    context.lineWidth = 2;
-    context.beginPath();
-    context.roundRect(72, 96, width - 144, height - 192, 52);
-    context.stroke();
-
     context.textAlign = "center";
     context.textBaseline = "middle";
 
-    context.fillStyle = "rgba(255,255,255,0.9)";
+    context.fillStyle = "#ffd7df";
     context.beginPath();
-    context.roundRect(centerX - 120, 146, 240, 46, 999);
+    context.roundRect(centerX - 130, 150, 260, 46, 999);
     context.fill();
-    context.fillStyle = "#7f3256";
+    context.fillStyle = "#a3275c";
     context.font = `700 18px ${uiFont}`;
     context.fillText("DAILY MINI CROSSWORD", centerX, 176);
 
-    // Sized and positioned to sit in the gap between the title (bottom
-    // edge ~286, from the 92px "LETTERBEAT" text below) and the date
-    // (top edge ~388, from the 48px date text below) -- it previously used
-    // a 190px font centered at y=324, which visibly overlapped the bottom
-    // of the title letters and nearly touched the date.
-    context.fillStyle = "rgba(127,50,86,0.08)";
-    context.font = `700 90px ${editorialFont}`;
-    context.fillText("LB", centerX, 337);
+    context.fillStyle = "#24163d";
+    context.font = `800 88px ${uiFont}`;
+    context.fillText("LETTERBEAT", centerX, 264);
 
-    context.fillStyle = "#7f3256";
-    context.font = `800 92px ${uiFont}`;
-    context.fillText("LETTERBEAT", centerX, 240);
+    context.fillStyle = "#e84d8a";
+    context.font = `700 38px ${uiFont}`;
+    context.fillText(puzzle.date, centerX, 330);
 
-    context.fillStyle = "#4a426a";
-    context.font = `700 48px ${uiFont}`;
-    context.fillText(puzzle.date, centerX, 412);
-
-    const chipY = 480;
-    const chipHeight = 60;
-    const chipWidth = 170;
+    const chipY = 398;
+    const chipHeight = 58;
+    const chipWidth = 176;
     const chipGap = 20;
     const chipGroupWidth = chipWidth * 2 + chipGap;
     const leftChipX = centerX - chipGroupWidth / 2;
     const rightChipX = leftChipX + chipWidth + chipGap;
 
-    context.fillStyle = "rgba(255,215,223,0.92)";
+    context.fillStyle = "#ffd7df";
     context.beginPath();
     context.roundRect(leftChipX, chipY, chipWidth, chipHeight, 999);
     context.fill();
-    context.fillStyle = "#7f3256";
-    context.font = `700 28px ${uiFont}`;
+    context.fillStyle = "#a3275c";
+    context.font = `700 26px ${uiFont}`;
     context.fillText(
       `Time ${formatTime(elapsedSeconds)}`,
       leftChipX + chipWidth / 2,
-      chipY + 31
+      chipY + 30
     );
 
-    context.fillStyle = hasReveals ? "rgba(255,225,143,0.92)" : "rgba(208,247,237,0.96)";
+    context.fillStyle = hasReveals ? "#ffe18f" : "#c7f3e6";
     context.beginPath();
     context.roundRect(rightChipX, chipY, chipWidth, chipHeight, 999);
     context.fill();
@@ -1316,103 +1293,102 @@ export default function CrosswordGrid({
     context.fillText(
       hasReveals ? "With reveals" : "Clean solve",
       rightChipX + chipWidth / 2,
-      chipY + 31
+      chipY + 30
     );
 
-    // The grid's shell: one soft-shadowed outer card, one snug frame right
-    // around the cells. The previous version stacked seven shapes here
-    // (two shells, a gradient fill, a drop shadow, a glow circle, and a
-    // frame with its own fill+stroke) for an effect that's cleaner with two.
+    // The grid is the hero of the card: actual solved letters (and their
+    // clue numbers), not blank colored tiles, so the export reads as proof
+    // of the finished puzzle rather than an abstract pattern.
+    const shellTop = 500;
+    const shellHeight = 700;
+    const shellWidth = 700;
+    const shellLeft = centerX - shellWidth / 2;
+
     context.save();
-    context.shadowColor = "rgba(32,21,71,0.14)";
-    context.shadowBlur = 32;
-    context.shadowOffsetY = 12;
-    context.fillStyle = "rgba(255,255,255,0.9)";
+    context.shadowColor = "rgba(36,22,61,0.16)";
+    context.shadowBlur = 30;
+    context.shadowOffsetY = 10;
+    context.fillStyle = "#fff3f0";
     context.beginPath();
-    context.roundRect(184, 598, width - 368, 540, 40);
+    context.roundRect(shellLeft, shellTop, shellWidth, shellHeight, 40);
     context.fill();
     context.restore();
 
-    context.strokeStyle = "rgba(127,50,86,0.14)";
-    context.lineWidth = 2;
-    context.beginPath();
-    context.roundRect(184, 598, width - 368, 540, 40);
-    context.stroke();
-
-    const boardSize = 414;
+    const boardSize = 620;
     const cellSize = boardSize / puzzle.grid.length;
     const boardLeft = centerX - boardSize / 2;
-    const boardTop = 640;
+    const boardTop = shellTop + (shellHeight - boardSize) / 2;
 
-    context.fillStyle = "#fff8f1";
-    context.beginPath();
-    context.roundRect(boardLeft - 22, boardTop - 22, boardSize + 44, boardSize + 44, 32);
-    context.fill();
-
-    context.strokeStyle = "rgba(32,21,71,0.14)";
-    context.lineWidth = 2;
-    context.beginPath();
-    context.roundRect(boardLeft - 22, boardTop - 22, boardSize + 44, boardSize + 44, 32);
-    context.stroke();
+    const numberByCell = new Map<string, number>();
+    [...puzzle.clues.across, ...puzzle.clues.down].forEach((clue) => {
+      const key = `${clue.row}-${clue.col}`;
+      if (!numberByCell.has(key)) {
+        numberByCell.set(key, clue.number);
+      }
+    });
 
     puzzle.grid.forEach((row, rowIndex) => {
       row.forEach((cell, colIndex) => {
         const x = boardLeft + colIndex * cellSize;
         const y = boardTop + rowIndex * cellSize;
         const isBlack = cell === "#";
-        const isRevealed = revealedCells.has(`${rowIndex}-${colIndex}`);
-        const fill = isBlack
-          ? "#201547"
-          : isRevealed
-            ? "#ffe18f"
-            : "#ff8476";
 
-        context.fillStyle = fill;
+        if (isBlack) {
+          context.fillStyle = "#24163d";
+          context.beginPath();
+          context.roundRect(x + 4, y + 4, cellSize - 8, cellSize - 8, 14);
+          context.fill();
+          return;
+        }
+
+        const isRevealed = revealedCells.has(`${rowIndex}-${colIndex}`);
+        context.fillStyle = isRevealed ? "#ffe18f" : "#ffd7df";
         context.beginPath();
-        context.roundRect(x + 4, y + 4, cellSize - 8, cellSize - 8, 16);
+        context.roundRect(x + 4, y + 4, cellSize - 8, cellSize - 8, 14);
         context.fill();
 
-        if (!isBlack) {
-          context.strokeStyle = "rgba(255,255,255,0.32)";
-          context.lineWidth = 2;
-          context.beginPath();
-          context.roundRect(x + 8, y + 8, cellSize - 16, cellSize - 16, 12);
-          context.stroke();
+        const number = numberByCell.get(`${rowIndex}-${colIndex}`);
+        if (number) {
+          context.save();
+          context.textAlign = "left";
+          context.textBaseline = "top";
+          context.fillStyle = "rgba(36,22,61,0.5)";
+          context.font = `700 17px ${uiFont}`;
+          context.fillText(String(number), x + 11, y + 7);
+          context.restore();
         }
+
+        context.fillStyle = "#24163d";
+        context.font = `700 ${Math.round(cellSize * 0.48)}px ${editorialFont}`;
+        context.fillText(
+          puzzle.solution[rowIndex][colIndex],
+          x + cellSize / 2,
+          y + cellSize / 2 + 4
+        );
       });
     });
 
-    context.fillStyle = "#4a426a";
+    context.fillStyle = "#5b4f78";
     context.font = `500 30px ${uiFont}`;
-    context.fillText("Play today's puzzle at", centerX, 1338);
+    context.fillText("Play today's puzzle at", centerX, 1298);
 
-    const ctaGradient = context.createLinearGradient(156, 1376, width - 156, 1494);
-    ctaGradient.addColorStop(0, "#2e225f");
-    ctaGradient.addColorStop(1, "#563171");
+    const ctaGradient = context.createLinearGradient(156, 1336, width - 156, 1454);
+    ctaGradient.addColorStop(0, "#24163d");
+    ctaGradient.addColorStop(1, "#41295e");
     context.fillStyle = ctaGradient;
     context.beginPath();
-    context.roundRect(156, 1376, width - 312, 118, 34);
+    context.roundRect(156, 1336, width - 312, 118, 34);
     context.fill();
-
-    context.strokeStyle = "rgba(255,255,255,0.12)";
-    context.lineWidth = 2;
-    context.beginPath();
-    context.roundRect(156, 1376, width - 312, 118, 34);
-    context.stroke();
 
     context.fillStyle = "#ffffff";
     context.font = `700 34px ${uiFont}`;
-    context.fillText("Play Letterbeat", centerX, 1413);
+    context.fillText("Play Letterbeat", centerX, 1373);
     context.font = `600 28px ${uiFont}`;
-    context.fillText("letterbeat.vercel.app", centerX, 1457);
+    context.fillText("letterbeat.vercel.app", centerX, 1417);
 
-    context.fillStyle = "#7f3256";
-    context.font = `700 26px ${uiFont}`;
-    context.fillText("Daily 5x5 crossword", centerX, 1616);
-
-    context.fillStyle = "#4a426a";
-    context.font = `500 24px ${uiFont}`;
-    context.fillText("Bright clues. Quick grids. Share the finish.", centerX, 1656);
+    context.fillStyle = "#a3275c";
+    context.font = `700 24px ${uiFont}`;
+    context.fillText("New puzzle every day", centerX, 1512);
 
     const fileName = `letterbeat-story-${puzzle.date}.png`;
     const blob = await new Promise<Blob | null>((resolve) =>
