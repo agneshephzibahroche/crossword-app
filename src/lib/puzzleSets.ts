@@ -29,19 +29,27 @@ export const PUZZLE_SETS: PuzzleSetDefinition[] = [
     ],
   },
   {
-    id: "apple-dogs-ocean",
+    id: "apple-dogs-boxing",
     categories: [
       { id: "apple-wordplay", label: "___ Apple", words: ["TOFFEE", "CANDY", "PINE", "CRAB"] },
-      { id: "dog-breeds", label: "Dog Breeds", words: ["POODLE", "BEAGLE", "HUSKY", "BOXER"] },
-      { id: "ocean-creatures", label: "Ocean Creatures", words: ["DOLPHIN", "OCTOPUS", "JELLYFISH", "STARFISH"] },
+      // BOXER reads as an obvious dog breed, but it's withheld here and
+      // placed with Boxing Terms instead -- the dog-breed list is complete
+      // without it (LAB fills the 4th slot).
+      { id: "dog-breeds", label: "Dog Breeds", words: ["POODLE", "BEAGLE", "LAB", "HUSKY"] },
+      { id: "boxing-terms", label: "Boxing Terms", words: ["BOXER", "JAB", "HOOK", "CROSS"] },
     ],
   },
   {
-    id: "chess-cards-herbs",
+    id: "chess-birds-cards",
     categories: [
-      { id: "chess-pieces", label: "Chess Pieces", words: ["BISHOP", "KNIGHT", "ROOK", "PAWN"] },
+      // ROOK and KING/QUEEN are the two most obvious chess pieces, and
+      // both are deliberately withheld: ROOK becomes a Bird (a real,
+      // common name for the bird), and KING/QUEEN move to Face Cards.
+      // CASTLE is a common informal name for the rook, so Chess Pieces
+      // still reads as a clean, correct set of 4 once solved.
+      { id: "chess-pieces", label: "Chess Pieces", words: ["BISHOP", "KNIGHT", "PAWN", "CASTLE"] },
+      { id: "birds", label: "Birds", words: ["ROOK", "ROBIN", "WREN", "FINCH"] },
       { id: "face-cards", label: "Face Cards", words: ["JACK", "QUEEN", "KING", "ACE"] },
-      { id: "herbs", label: "Herbs", words: ["BASIL", "THYME", "OREGANO", "ROSEMARY"] },
     ],
   },
   {
@@ -53,11 +61,14 @@ export const PUZZLE_SETS: PuzzleSetDefinition[] = [
     ],
   },
   {
-    id: "ball-veggies-zodiac",
+    id: "ball-zodiac-constellations",
     categories: [
       { id: "ball-wordplay", label: "___ Ball", words: ["BASKET", "FOOT", "BASE", "MEAT"] },
-      { id: "root-vegetables", label: "Root Vegetables", words: ["CARROT", "POTATO", "BEET", "TURNIP"] },
-      { id: "zodiac-signs", label: "Zodiac Signs", words: ["ARIES", "LIBRA", "SCORPIO", "PISCES"] },
+      { id: "zodiac-signs", label: "Zodiac Signs", words: ["ARIES", "LIBRA", "CANCER", "VIRGO"] },
+      // Every zodiac sign is also an official constellation, so LEO reads
+      // just as easily as a sign -- it's withheld from Zodiac Signs above
+      // specifically to sit here instead.
+      { id: "constellations", label: "Constellations", words: ["LEO", "ORION", "DRACO", "PHOENIX"] },
     ],
   },
   {
@@ -72,7 +83,11 @@ export const PUZZLE_SETS: PuzzleSetDefinition[] = [
     id: "greek-gods-constellations-cheese",
     categories: [
       { id: "greek-gods", label: "Greek Gods", words: ["ZEUS", "HERMES", "APOLLO", "ATHENA"] },
-      { id: "constellations", label: "Constellations", words: ["ORION", "GEMINI", "LEO", "TAURUS"] },
+      // HERCULES is Greek mythology through and through, but he's a hero,
+      // not one of the Olympian gods -- a subtler trap than a straight
+      // word swap, since it hinges on that distinction rather than a
+      // literal double meaning.
+      { id: "constellations-2", label: "Constellations", words: ["ORION", "HERCULES", "LYRA", "DRACO"] },
       { id: "cheese-types", label: "Types of Cheese", words: ["CHEDDAR", "BRIE", "GOUDA", "FETA"] },
     ],
   },
@@ -117,10 +132,12 @@ export const PUZZLE_SETS: PuzzleSetDefinition[] = [
     ],
   },
   {
-    id: "space-reindeer-sandwiches",
+    id: "space-cars-sandwiches",
     categories: [
-      { id: "space-objects", label: "Space Objects", words: ["COMET", "ASTEROID", "METEOR", "NEBULA"] },
-      { id: "reindeer-names", label: "Reindeer Names", words: ["DASHER", "PRANCER", "VIXEN", "CUPID"] },
+      // METEOR was a real Ford/Mercury model name -- withheld from Space
+      // Objects so it can trap as a car instead.
+      { id: "space-objects", label: "Space Objects", words: ["COMET", "ASTEROID", "NEBULA", "PULSAR"] },
+      { id: "classic-cars", label: "Classic Car Models", words: ["METEOR", "MUSTANG", "IMPALA", "CORVETTE"] },
       { id: "sandwiches", label: "Sandwiches", words: ["REUBEN", "PANINI", "BLT", "GYRO"] },
     ],
   },
@@ -157,18 +174,22 @@ export const PUZZLE_SETS: PuzzleSetDefinition[] = [
     ],
   },
   {
-    id: "pixar-continents-herbs",
+    id: "pixar-games-water",
     categories: [
       { id: "pixar-movies", label: "Pixar Movies", words: ["COCO", "BRAVE", "ONWARD", "LUCA"] },
-      { id: "continents", label: "Continents", words: ["AFRICA", "ASIA", "EUROPE", "ANTARCTICA"] },
-      { id: "herbs-2", label: "Herbs", words: ["THYME", "OREGANO", "ROSEMARY", "SAGE"] },
+      // POOL is a body of water just as much as it's a game -- withheld
+      // from Bodies of Water below so it can trap here instead.
+      { id: "tabletop-games", label: "Tabletop & Cue Games", words: ["POOL", "DARTS", "BINGO", "CHESS"] },
+      { id: "bodies-of-water", label: "Bodies of Water", words: ["LAKE", "POND", "CREEK", "RIVER"] },
     ],
   },
   {
-    id: "money-slang-currencies-amphibians",
+    id: "money-slang-male-animals-amphibians",
     categories: [
-      { id: "money-slang", label: "Money Slang", words: ["BUCK", "GRAND", "DOUGH", "BREAD"] },
-      { id: "currencies-2", label: "World Currencies", words: ["DOLLAR", "EURO", "PESO", "YEN"] },
+      // BUCK is the most obvious piece of money slang here, but it's held
+      // back for Male Animal Names -- MOOLAH fills its spot.
+      { id: "money-slang", label: "Money Slang", words: ["GRAND", "DOUGH", "BREAD", "MOOLAH"] },
+      { id: "male-animals", label: "Male Animal Names", words: ["BUCK", "RAM", "BULL", "DRAKE"] },
       { id: "amphibians", label: "Amphibians", words: ["FROG", "TOAD", "NEWT", "SALAMANDER"] },
     ],
   },

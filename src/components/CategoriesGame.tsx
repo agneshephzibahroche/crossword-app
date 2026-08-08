@@ -94,8 +94,22 @@ export default function CategoriesGame({ puzzle }: Props) {
 
   useEffect(() => {
     const stored = readStoredProgress(storageKey);
+    // The storage key is date-only, so if the puzzle *content* for a
+    // already-played date ever changes (e.g. a content update regenerates
+    // the schedule), old progress can reference category ids that don't
+    // exist in the current puzzle. Trusting it blindly then permanently
+    // soft-locks the game: gameOver stays true forever with no submit
+    // controls, and the solved-category lookup renders nothing since the
+    // ids don't match -- exactly what "unable to play" looks like from the
+    // outside. Validate against the real puzzle before trusting storage.
+    const currentCategoryIds = new Set(
+      puzzle.categories.map((category) => category.id)
+    );
+    const isStoredProgressValid =
+      stored !== null &&
+      stored.solvedCategoryIds.every((id) => currentCategoryIds.has(id));
 
-    if (stored) {
+    if (isStoredProgressValid && stored) {
       setSolvedCategoryIds(stored.solvedCategoryIds);
       setMistakes(stored.mistakes);
       setElapsedSeconds(stored.elapsedSeconds);
@@ -103,6 +117,11 @@ export default function CategoriesGame({ puzzle }: Props) {
       setGameOver(stored.gameOver);
       setWon(stored.won);
     } else {
+      setSolvedCategoryIds([]);
+      setMistakes(0);
+      setElapsedSeconds(0);
+      setGameOver(false);
+      setWon(false);
       setStartedAtMs(Date.now());
     }
 
