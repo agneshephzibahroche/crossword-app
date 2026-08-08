@@ -28,7 +28,7 @@ execFileSync(
     "--rootDir",
     "src",
     path.join(projectRoot, "src", "lib", "categoriesCore.ts"),
-    path.join(projectRoot, "src", "lib", "categoryPool.ts"),
+    path.join(projectRoot, "src", "lib", "puzzleSets.ts"),
     path.join(projectRoot, "src", "types", "categories.ts"),
   ],
   {

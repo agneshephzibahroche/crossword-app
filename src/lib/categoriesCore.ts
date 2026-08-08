@@ -1,13 +1,11 @@
-import { CATEGORY_POOL, CategoryDefinition } from "./categoryPool";
+import { PUZZLE_SETS } from "./puzzleSets";
 import type { CategoriesPuzzle } from "../types/categories";
 
 export const CATEGORIES_SCHEDULE_START = "2025-01-01";
 export const CATEGORIES_SCHEDULE_END = "2028-12-31";
 
-// How many days a category must sit out before it can be reused. The pool
-// (77 categories, 3 picked/day) comfortably supports this without ever
-// forcing the relaxed fallback below.
-const RECENT_CATEGORY_LOOKBACK_DAYS = 20;
+// How many days a puzzle set must sit out before it can be reused.
+const RECENT_SET_LOOKBACK_DAYS = 14;
 
 function hashString(value: string) {
   let hash = 2166136261;
@@ -51,50 +49,18 @@ export function shiftDate(dateKey: string, amount: number) {
   return toDateKey(date);
 }
 
-function selectThree(
-  orderedPool: CategoryDefinition[],
-  excludeIds: Set<string>
-): CategoryDefinition[] | null {
-  const chosen: CategoryDefinition[] = [];
-  const usedWords = new Set<string>();
-
-  for (const category of orderedPool) {
-    if (excludeIds.has(category.id)) {
-      continue;
-    }
-
-    if (category.words.some((word) => usedWords.has(word))) {
-      continue;
-    }
-
-    chosen.push(category);
-    category.words.forEach((word) => usedWords.add(word));
-
-    if (chosen.length === 3) {
-      return chosen;
-    }
-  }
-
-  return null;
+function chooseSetForDate(dateKey: string, recentSetIds: string[]) {
+  const orderedSets = shuffleWithSeed(PUZZLE_SETS, `categories:${dateKey}`);
+  const excludeIds = new Set(recentSetIds);
+  return orderedSets.find((set) => !excludeIds.has(set.id)) ?? orderedSets[0];
 }
 
-export function pickCategoriesForDate(
+function buildPuzzleFromSet(
   dateKey: string,
-  recentCategoryIds: string[]
+  chosenSet: (typeof PUZZLE_SETS)[number]
 ): CategoriesPuzzle {
-  const orderedPool = shuffleWithSeed(CATEGORY_POOL, `categories:${dateKey}`);
-  const excludeIds = new Set(recentCategoryIds);
-  // Preferred tier: avoid every category used in the lookback window. If the
-  // pool were ever exhausted (it isn't, at 77 categories for 3/day), fall
-  // back to ignoring recency rather than failing to produce a puzzle.
-  const chosen = selectThree(orderedPool, excludeIds) ?? selectThree(orderedPool, new Set());
-
-  if (!chosen) {
-    throw new Error(`Unable to select categories for ${dateKey}`);
-  }
-
   const words = shuffleWithSeed(
-    chosen.flatMap((category) => category.words),
+    chosenSet.categories.flatMap((category) => category.words),
     `categories-order:${dateKey}`
   );
 
@@ -102,7 +68,7 @@ export function pickCategoriesForDate(
     id: `${dateKey}-categories-${hashString(dateKey).toString(16)}`,
     date: dateKey,
     title: `Daily Categories #${(hashString(dateKey) % 900) + 100}`,
-    categories: chosen.map((category) => ({
+    categories: chosenSet.categories.map((category) => ({
       id: category.id,
       label: category.label,
       words: category.words,
@@ -111,18 +77,24 @@ export function pickCategoriesForDate(
   };
 }
 
+export function pickCategoriesForDate(
+  dateKey: string,
+  recentSetIds: string[]
+): CategoriesPuzzle {
+  const chosenSet = chooseSetForDate(dateKey, recentSetIds);
+  return buildPuzzleFromSet(dateKey, chosenSet);
+}
+
 export function buildCategoriesSchedule(startDate: string, endDate: string) {
   const schedule = new Map<string, CategoriesPuzzle>();
-  const usedHistory: string[] = [];
+  const usedSetIds: string[] = [];
   let cursor = startDate;
 
   while (cursor <= endDate) {
-    const picked = pickCategoriesForDate(
-      cursor,
-      usedHistory.slice(-RECENT_CATEGORY_LOOKBACK_DAYS * 3)
-    );
-    schedule.set(cursor, picked);
-    usedHistory.push(...picked.categories.map((category) => category.id));
+    const recentSetIds = usedSetIds.slice(-RECENT_SET_LOOKBACK_DAYS);
+    const chosenSet = chooseSetForDate(cursor, recentSetIds);
+    schedule.set(cursor, buildPuzzleFromSet(cursor, chosenSet));
+    usedSetIds.push(chosenSet.id);
     cursor = shiftDate(cursor, 1);
   }
 
