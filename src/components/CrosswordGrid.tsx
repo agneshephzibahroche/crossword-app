@@ -1216,8 +1216,6 @@ export default function CrosswordGrid({
     const width = 1080;
     const height = 1920;
     const centerX = width / 2;
-    const editorialFont =
-      "\"Iowan Old Style\", \"Palatino Linotype\", \"Book Antiqua\", \"Libre Baskerville\", Georgia, serif";
     const uiFont = "\"Segoe UI\", \"Helvetica Neue\", Arial, sans-serif";
     const canvas = document.createElement("canvas");
     canvas.width = width;
@@ -1374,14 +1372,6 @@ export default function CrosswordGrid({
           context.fillText(String(number), x + 11, y + 7);
           context.restore();
         }
-
-        context.fillStyle = "#24163d";
-        context.font = `700 ${Math.round(cellSize * 0.48)}px ${editorialFont}`;
-        context.fillText(
-          puzzle.solution[rowIndex][colIndex],
-          x + cellSize / 2,
-          y + cellSize / 2 + 4
-        );
       });
     });
 
