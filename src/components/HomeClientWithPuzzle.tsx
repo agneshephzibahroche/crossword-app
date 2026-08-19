@@ -11,6 +11,7 @@ import Link from "next/link";
 import CrosswordGrid from "@/components/CrosswordGrid";
 import NextPuzzleCountdown from "@/components/NextPuzzleCountdown";
 import { PuzzleArchiveEntry } from "@/lib/dailyPuzzle";
+import { computeStreak } from "@/lib/streak";
 import { Puzzle } from "@/types/puzzle";
 import { ThemeMode } from "@/types/theme";
 
@@ -396,6 +397,15 @@ export default function HomeClientWithPuzzle({
   const revealCompletionCount = statsSummary.completedWithRevealsDates.filter(
     (date) => !statsSummary.solvedDates.includes(date)
   ).length;
+  const streak = computeStreak(
+    Array.from(
+      new Set([
+        ...statsSummary.solvedDates,
+        ...statsSummary.completedWithRevealsDates,
+      ])
+    ),
+    today
+  );
   const cleanSolveTimes = Object.values(statsSummary.cleanSolveTimesByDate);
   const averageCleanTime =
     cleanSolveTimes.length > 0
@@ -410,20 +420,18 @@ export default function HomeClientWithPuzzle({
       <div className="mx-auto max-w-[1180px] px-4 py-5 sm:px-6 lg:px-8">
         <header className="border-y border-[var(--line)] py-5">
           <div className="flex items-start justify-between gap-4">
-            <div className="space-y-2">
+            <div className="flex flex-wrap items-center gap-2">
               <p className="inline-flex rounded-full bg-[var(--accent-soft)] px-3 py-1 text-[0.7rem] font-semibold uppercase tracking-[0.28em] text-[var(--accent-strong)]">
                 Letterbeat
               </p>
+              {streak.current > 0 && (
+                <p className="inline-flex items-center gap-1 rounded-full bg-[var(--card-muted)] px-3 py-1 text-[0.7rem] font-bold text-[var(--ink)]">
+                  🔥 {streak.current}-day streak
+                </p>
+              )}
             </div>
 
             <div className="flex gap-2">
-              <Link
-                href="/categories"
-                className="rounded-full border border-[var(--line-strong)] bg-[var(--surface)] px-4 py-2 text-sm font-semibold text-[var(--ink)] shadow-[0_10px_24px_rgba(18,31,53,0.08)] transition hover:border-[var(--accent)] hover:bg-[var(--surface-hover)]"
-              >
-                Categories
-              </Link>
-
               <button
                 type="button"
                 onClick={toggleTheme}
@@ -580,6 +588,22 @@ export default function HomeClientWithPuzzle({
               </div>
 
               <div className="mt-4 grid grid-cols-2 gap-3">
+                <div className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] px-4 py-3">
+                  <p className="text-[0.7rem] font-semibold uppercase tracking-[0.18em] text-[var(--muted)]">
+                    Streak
+                  </p>
+                  <p className="mt-2 font-[family-name:var(--font-editorial)] text-3xl leading-none">
+                    {streak.current > 0 ? `🔥 ${streak.current}` : "0"}
+                  </p>
+                </div>
+                <div className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] px-4 py-3">
+                  <p className="text-[0.7rem] font-semibold uppercase tracking-[0.18em] text-[var(--muted)]">
+                    Best streak
+                  </p>
+                  <p className="mt-2 font-[family-name:var(--font-editorial)] text-3xl leading-none">
+                    {streak.longest}
+                  </p>
+                </div>
                 <div className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] px-4 py-3">
                   <p className="text-[0.7rem] font-semibold uppercase tracking-[0.18em] text-[var(--muted)]">
                     Clean solves

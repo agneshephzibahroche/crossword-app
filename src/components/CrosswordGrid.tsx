@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ChangeEvent } from "react";
 import ClueList from "@/components/ClueList";
 import { getCellNumber, getWordCells } from "@/lib/crossword";
+import { computeStreak } from "@/lib/streak";
 import { Direction, Puzzle } from "@/types/puzzle";
 
 type Props = {
@@ -268,6 +269,10 @@ export default function CrosswordGrid({
   const [revealedCells, setRevealedCells] = useState<Set<string>>(new Set());
   const [revealedWords, setRevealedWords] = useState<Set<string>>(new Set());
   const [completionDismissed, setCompletionDismissed] = useState(false);
+  const [celebration, setCelebration] = useState<{
+    streak: number;
+    isNewBest: boolean;
+  } | null>(null);
   const [shareState, setShareState] = useState<
     "idle" | "copied" | "failed" | "shared"
   >("idle");
@@ -312,6 +317,7 @@ export default function CrosswordGrid({
     setRevealedCells(new Set());
     setRevealedWords(new Set());
     setCompletionDismissed(false);
+    setCelebration(null);
     hasRecordedCompletionRef.current = false;
     setSelectedRow(0);
     setSelectedCol(0);
@@ -491,6 +497,7 @@ export default function CrosswordGrid({
     setElapsedSeconds(0);
     setStartedAtMs(Date.now());
     setCompletionDismissed(false);
+    setCelebration(null);
     hasRecordedCompletionRef.current = false;
   }
 
@@ -1009,6 +1016,16 @@ export default function CrosswordGrid({
         bestTimeCandidates.length > 0 ? Math.min(...bestTimeCandidates) : null,
       cleanSolveTimesByDate,
     };
+
+    const todayDate = new Date().toISOString().slice(0, 10);
+    const streak = computeStreak(
+      Array.from(new Set([...solvedDates, ...completedWithRevealsDates])),
+      todayDate
+    );
+    const isNewBest =
+      !hasReveals &&
+      (stats.bestTimeSeconds === null || elapsedSeconds < stats.bestTimeSeconds);
+    setCelebration({ streak: streak.current, isNewBest });
 
     localStorage.setItem(STATS_KEY, JSON.stringify(nextStats));
     window.dispatchEvent(new Event(ARCHIVE_EVENT));
@@ -1755,6 +1772,21 @@ export default function CrosswordGrid({
                 Time: <span className="font-bold">{formatTime(elapsedSeconds)}</span>
               </div>
             </div>
+
+            {celebration && (celebration.isNewBest || celebration.streak > 1) && (
+              <div className="mt-3 flex flex-wrap justify-center gap-2">
+                {celebration.isNewBest && (
+                  <span className="rounded-full bg-[var(--success-soft)] px-3 py-1.5 text-sm font-bold text-[var(--success)]">
+                    🏆 New personal best!
+                  </span>
+                )}
+                {celebration.streak > 1 && (
+                  <span className="rounded-full bg-[var(--accent-soft)] px-3 py-1.5 text-sm font-bold text-[var(--accent-strong)]">
+                    🔥 {celebration.streak}-day streak
+                  </span>
+                )}
+              </div>
+            )}
 
             <div className="mt-5 flex justify-center">
               <div className="inline-block rounded-[24px] border border-[var(--line-strong)] bg-[var(--paper)] p-2 shadow-[0_12px_24px_rgba(18,31,53,0.06)]">
