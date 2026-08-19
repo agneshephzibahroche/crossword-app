@@ -459,11 +459,6 @@ export default function HomeClientWithPuzzle({
                     : "Selected grid"}
                 </p>
                 {renderStatusBadge(currentStatus, false)}
-                {puzzle.theme && (
-                  <span className="inline-flex rounded-full bg-[var(--accent-soft)] px-3 py-1 text-xs font-semibold text-[var(--accent-strong)]">
-                    {puzzle.theme.label}
-                  </span>
-                )}
               </div>
               <p className="mt-2 text-center font-[family-name:var(--font-editorial)] text-3xl leading-none text-[var(--ink)] md:text-left">
                 {formatLongDate(puzzle.date)}

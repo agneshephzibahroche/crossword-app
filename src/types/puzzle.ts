@@ -13,10 +13,6 @@ export interface PuzzleEntry {
   clues: string[];
 }
 
-export interface PuzzleTheme {
-  label: string;
-}
-
 export interface Puzzle {
   id: string;
   date: string;
@@ -29,8 +25,4 @@ export interface Puzzle {
     across: Clue[];
     down: Clue[];
   };
-  // A soft daily theme -- some of the fill was nudged toward this category,
-  // but it's never guaranteed since the nudge yields to grid crossing
-  // constraints. Absent for puzzles generated before this feature existed.
-  theme?: PuzzleTheme;
 }
