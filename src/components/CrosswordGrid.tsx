@@ -1372,6 +1372,22 @@ export default function CrosswordGrid({
           context.fillText(String(number), x + 11, y + 7);
           context.restore();
         }
+
+        // A letter-free colored cell reads as an *empty* grid template, not
+        // a solved one -- there's nothing distinguishing "I filled this in"
+        // from "this puzzle hasn't been played yet". A checkmark makes
+        // completion visible without spelling out the answer.
+        context.save();
+        context.strokeStyle = "rgba(36,22,61,0.55)";
+        context.lineWidth = Math.max(3, cellSize * 0.09);
+        context.lineCap = "round";
+        context.lineJoin = "round";
+        context.beginPath();
+        context.moveTo(x + cellSize * 0.26, y + cellSize * 0.54);
+        context.lineTo(x + cellSize * 0.44, y + cellSize * 0.72);
+        context.lineTo(x + cellSize * 0.76, y + cellSize * 0.32);
+        context.stroke();
+        context.restore();
       });
     });
 
